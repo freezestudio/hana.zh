@@ -129,7 +129,7 @@ static_assert(mpl::equal<pointers,
 
 以上所有计算都作地很好了,那么,Hana库又是干什么的?现在我们已经知道了C++的各种计算类型,回答这个问题可以会很简单了.**Hana的目的是合并第三和第四象限的计算**,具体来说,Hana经过长期构建证明,异构计算比类型计算更强大.我们可以通过等效的异构计算来表达任何类型计算.这种构造在两个步骤中完成.首先,Hana是一个功能齐全的异构算法和容器库,有点像现代化的Boost.Fusion.其次,Hana提供了一种将任何类型计算转换为其等效的异构计算的方法.这允许异构计算的全部机制被重用于类型计算,而没有任何代码重复.当然,这种统一的最大优点是用户能看到的.
 
-# 快速起步
+# 快速入门
 
 本节的目的是从非常高的层次快速介绍Hana库的主要概念; 不用担心看不明白一股脑仍给你的东西. 但是，本教程要求读者已经至少熟悉基本元编程和C++14标准.首先,需要包含以下库:
 
@@ -304,6 +304,184 @@ struct default_t;
 auto default_=case_<default_t>;
 ```
 
+为支持上述接口，`switch_`必须返回一个case分支的函数,另外,`switch_(a)`还需要接受任意数量的的case(它们都是`haha::pair`),并能以正确的逻辑执行某个case的分派函数.可以通过返回C++14泛型lambda来实现:
+
+``` C++
+template<typename Any>
+auto switch_(Any& a){
+    return [&a](auto... case_){
+        // ...
+    };
+}
+```
+
+参数包不是太灵活,我们把它转为`tuple`好利用操作:
+
+``` C++
+template<typename Any>
+auto switch_(Any& a){
+    return [&a](auto... cases_){
+        auto cases=haha::make_tuple(cases_...);
+        // ...
+    };
+}
+```
+
+注意在定义`cases`时是怎样使用`auto`关键字的;这通常更容易让编译器推断出tuple的类型，并使用make_tuple而不是手动处理类型.下一步要做的是区分出`default case`与其它case.为此,我们使用Hana的`find_if`算法,它在原理上类似于`std::find_if`:
+
+``` C++
+template<typename Any>
+auto switch_(Any& a){
+    return [&a](auto... cases_){
+        auto cases=hana::make_tuple(cases_...);
+
+        auto default_=hana::find_if(cases,[](auto const& c){
+            return hana::first(c)==hana::type_c<default_t>;
+        });
+    };
+
+    // ...
+}
+```
+
+`find_if`接受一个元组和一个谓词,返回元组中满足谓词条件的第一个元素.返回结果是一个`hana::optional`,它类似于`std::optional`,除了可选值为empty或不是编译时已知的.如果元组的元素不满足谓词条件,`find_if`不返回任何值(空值).否则,返回`just(x)`(非空值),其中`x`是满足谓词的第一个元素.与STL算法中使用的谓词不同,此处使用的谓词必须是泛型的,因为元组中的元素是异构的.此外,该谓词必须返回Hana调用的IntegeralConstant,这意味着谓词的结果必须是编译时已知的.更多细节请参见[交叉相位算法]().在谓词内部,我们只需将cases的第一个元素的类型与`type_c<default_t>`比较.如果还记得我们使用`hana::pair`来对case进行编码的话,这里的意思即为我们在所有提供的case中找到default case.但是,如果没有提供default case时会怎样呢?当然是编译失败!
+
+``` C++
+template<typename Any>
+auto switch_(Any& a){
+    return [&a](auto... cases_){
+        auto cases=hana::make_tuple(cases_...);
+
+        auto default_=hana::find_if(cases,[](auto const& c){
+            return haha::first(c)==hana::type_c<default_t>;
+        });
+        static_assert(default_!=hana::nothing,"switch is missing a default_ case");
+
+        // ...
+    };
+}
+```
+
+注意我们是怎样用`static_assert`来处理`nothing`结果的.担心`default_`是非constexpr对象吗?不用.Hana能确保非编译期已知的信息传递到运行时.这显示能保证`default_`必须存在.下一步该处理非default的case了,我们这里用`filter`算法,它可以使序列仅保留满足谓词的元素:
+
+``` C++
+template<typename Any>
+auto switch_(Any& a){
+    return [&a](auto... cases_){
+        auto cases=hana::make_tuple(cases_...);
+
+        auto default_=hana::find_if(cases,[](auto const& c){
+            return haha::first(c)==hana::type_c<default_t>;
+        });
+        static_assert(default_!=hana::nothing,"switch is missing a default_ case");
+
+        auto rest=hana::filter(cases,[](auto const& c){
+            return hana::first(c)!=hana::type_c<default_t>;
+        });
+
+        // ...
+    };
+```
+
+接下来就该查找哪一个case匹配`any`的动态类型了,找到后要调用与此case关联的函数.简单处理的方法是使用递归,传入参数包.当然,也可以复杂一点,用hana算法来实现.有时最好的办法就是用最基础的技术从头开始编写.故此,我们将用`unpack`函数来实现,这个函数需要一个元组,元组中的元素就是这些case(不含default_):
+
+``` C++
+template<typename Any>
+auto switch_(Any& a){
+    return [&a](auto... cases_){
+        auto cases=hana::make_tuple(cases_...);
+
+        auto default_=hana::find_if(cases,[](auto const& c){
+            return haha::first(c)==hana::type_c<default_t>;
+        });
+        static_assert(default_!=hana::nothing,"switch is missing a default_ case");
+
+        auto rest=hana::filter(cases,[](auto const& c){
+            return hana::first(c)!=hana::type_c<default_t>;
+        });
+
+        return hana::unpack(rest,[&](auto&... rests){
+            return process(a,a.type(),hana::second(*default_),rests...);
+        });
+    };
+```
+
+`unpack`接受一个元组和一个函数,并以元组的内容作为参数调用函数.解包的结果是调用该函数的结果.此例,函数是一个泛型lambda,lambda调用了`process`函数.在这里使用`unpack`的原因是将rest元组转换为一个参数包更容易递归(相对于tuple来说).在继续处理`process`函数之前,先对参数`second(*default_)`作以解释.如前所述,`default_`是一个可选值.像`std::optional`一样,这个可选值重载了`dereference`运算符(和箭头运算符)以允许访问`optional`内部的值.如果`optional`为空(nothing),则引发编译错误.因为我们知道`default_`不为空(上面代码中有检查),我们只须简将与default相关联的函数传递给`process`函数.接下来进行最后一步的处理,实现`process`函数:
+
+``` C++
+template<typename Any,typename Default>
+auto process(Any&,std::type_index const&,Default& default_){
+    return default_();
+}
+
+template<typename Any,typename Default,typename Case,typename... Rest>
+auto process(Any& a,std::type_index const& t,Default default_,Case& case_,Rest&... rest){
+    using T=typename decltype(+hana::first(case_))::type;
+    return t==typeid(T)?hana::second(case_)(*boost::unsafe_any_cast<T>(&a)):
+        process(a,t,default_,rest...);
+}
+```
+
+这个函数有两个重载版本:一个重载用于至少有一个case,一个重载用于仅有`default_` case.与我们期望的一样,仅有`default_` case的重载简单调用default函数并返回该结果.另一个重载才更有趣.首先,我们检索与与该case相关联的类型并将其保存到`T`变量.这里`decltype(...)::type`看起来挺复杂的,其实很简单.详情参见[类型计算]().然后,我们比较`any`的动态类型是否匹配这个case,如果匹配就调用关联函数,将`any`转换为正确的类型,否则,用其余的case再次递归.是不是很简单?以下是完整的代码:
+
+``` C++
+#include <boost/hana.hpp>
+#include <boost/any.hpp>
+#include <cassert>
+#include <string>
+#include <typeindex>
+#include <typeinfo>
+#include <utility>
+namespace hana = boost::hana;
+
+//! [cases]
+template <typename T>
+auto case_ = [](auto f) {
+  return hana::make_pair(hana::type_c<T>, f);
+};
+struct default_t;
+auto default_ = case_<default_t>;
+//! [cases]
+
+//! [process]
+template <typename Any, typename Default>
+auto process(Any&, std::type_index const&, Default& default_) {
+  return default_();
+}
+template <typename Any, typename Default, typename Case, typename ...Rest>
+auto process(Any& a, std::type_index const& t, Default& default_,
+             Case& case_, Rest& ...rest)
+{
+  using T = typename decltype(+hana::first(case_))::type;
+  return t == typeid(T) ? hana::second(case_)(*boost::unsafe_any_cast<T>(&a))
+                        : process(a, t, default_, rest...);
+}
+//! [process]
+
+//! [switch_]
+template <typename Any>
+auto switch_(Any& a) {
+  return [&a](auto ...cases_) {
+    auto cases = hana::make_tuple(cases_...);
+    auto default_ = hana::find_if(cases, [](auto const& c) {
+      return hana::first(c) == hana::type_c<default_t>;
+    });
+    static_assert(default_ != hana::nothing,
+      "switch is missing a default_ case");
+    auto rest = hana::filter(cases, [](auto const& c) {
+      return hana::first(c) != hana::type_c<default_t>;
+    });
+    return hana::unpack(rest, [&](auto& ...rest) {
+      return process(a, a.type(), hana::second(*default_), rest...);
+    });
+  };
+}
+//! [switch_]
+```
+
+以上就是我们的快速入门了.这个例子只介绍了几个有用的算法(`find_if`,`filter`,`unpack`)和异构容器(`tuple`,`optional`),放心,还有更多!本教程的后续部分将以友好的方式逐步介绍与Hana有关的概念.如果你想立即着手编写代码,可以用以下备忘表作为快速参考.这个备忘表囊括了最常用的算法和容器,还提供了简短的说明.
+
+# 备忘表
 
 
 
