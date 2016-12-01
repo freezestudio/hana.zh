@@ -501,11 +501,18 @@ auto switch_(Any& a) {
 | type           | 表示一个C++类型的容器.是类型与值相统一的根本所在.比MPL式的计算更有趣[类型计算]()|
 | integral_constant| 表示编译期数值.非常类似于`std::integral_constant`,不同之处在于`hana::integral_constant`还定义了一些操作和语法糖|
 | lazy           | 封装一个懒惰值或计算.|
-| basic+tuple    | 简装版`hana::tuple`.不符合标准,但更有编译时效率|
+| basic_tuple    | 简装版`hana::tuple`.不符合标准,但更有编译时效率|
 
-| 函数            | 说明             |
-------------------|------------------
-| adjust(sequence,value,f)| 将函数应用到序列的每元素上,将值与元素比较,返回调整后的序列|
+| 函数                     | 说明                                                          |
+--------------------------|----------------------------------------------------------------
+| adjust(sequence,value,f)| 将函数应用到序列的每个元素上,将值与元素比较,返回调整后的序列|
+| adjust_if(sequence,predicate,f)| 将函数应用到序列的每个元素上,调整满足谓词的每个元素,返回调整后的序号|
+| {all,any,none}(sequence) | 返回是否 所有/任意/无 序列的元素都是真值|
+| {all,any,none}(sequence) | 返回是否 所有/任意/无 序列的元素满足谓词|
+| append(sequence,value)   | 附加元素到序列|
+| at(sequence,index)       | 返回序列第n个元素,index必须是一个IntegralConstant|
+
+# 断言
 
 
 
