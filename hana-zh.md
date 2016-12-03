@@ -511,6 +511,33 @@ auto switch_(Any& a) {
 | {all,any,none}(sequence) | 返回是否 所有/任意/无 序列的元素满足谓词|
 | append(sequence,value)   | 附加元素到序列|
 | at(sequence,index)       | 返回序列第n个元素,index必须是一个IntegralConstant|
+| back(sequence)           | 返回非空序列的最后一个元素|
+| concat(sequence1,sequence2)| 合并两个序列|
+| contains(sequence,value) | 序列中是否包含给定的值|
+| count(sequence,value)    | 序列中给定值的数量|
+| count_if(sequence,predicate)| 序列中给定符合谓词条件的元素的数量|
+| drop_front(sequence[,n]) | 从序列中删除前`n`个元素,若`length(sequence)<=n`,则删除整个序列.`n`必须是`IntegralConstant`,未提供`n`时,``默认为`1`|
+| drop_front_exactly(sequence[,n])|从序列中删除前`n`个元素,`n`必须是`IntegralConstant`而且序列中至少要有`n`个元素,未提供`n`时,``默认为`1`|
+| drop_back(sequence[,n])  | 从序列结尾删除`n`个元素,若`length(sequence)<=n`,则删除整个序列.`n`必须是`IntegralConstant`,未提供`n`时,``默认为`1`|
+| drop_while(sequence,predicate) | 从序列删除满足谓词的元素.谓词必须返回一个`IntegralConstant`|
+| fill(sequence,value) | 用`value`重置序列中的所有元素|
+| filter(sequence,predicate) | 移除序列中所有不满足谓词的元素,谓词必须返回一个`IntegralConstant`|
+| find(sequence,value) | 查找序列中第一个与`value`相等的元素,并返回`just`或`nothing`,参见`hana::optional`|
+| find_if(sequence,predicate) | 查找序列中第一个与满足谓词的元素,并返回`just`或`nothing`,参见`hana::optional`|
+| flatten(sequence) | 连接序列,类似于`std::tuple_cat`|
+| fold_left(sequence[,state],f) | 从左侧累积序列的元素，可选地使用提供的初始状态|
+| fold_right(sequence[,state],f) | 从右侧累积序列的元素，可选地使用提供的初始状态|
+| fold(sequence[,state],f) | 相当于`fold_left`,与`Boost.MPL`和`Boost.Fusion`保持一致|
+| for_each(sequence,f) | 在序列的每个元素上调用`f`函数.返回`void`|
+| front(sequence) | 返回非空序列的第一个元素|
+| group(sequence[,predicate])| 将所有满足（或全部不满足）谓词的序列的相邻元素组。 谓词默认为相等，在这种情况下，元素必须是`Comparable`(可比性)的|
+| insert(sequence,index,element) | 在指定索引处插入元素,`index`必须是`IntegralConstant`|
+| insert_range(sequence,index,elements) | 在指定索引处插入多个元素,`index`必须是`IntegralConstant`|
+| is_empty(sequence)| 序列是否为空,返回值作为`IntegralConstant`|
+| length(sequence) | 序列的长度,返回值作为`IntegralConstant`|
+| lexicographical_compare(sequence1,sequence2[,predicate])| 执行两个序列的词典比较，可选地使用自定义谓词，默认情况下使用`hana::less`|
+| maximum(sequence[,predicate])| 返回序列的最大元素，可选地根据谓词。 如果没有提供谓词，那么元素必须是`Orderable`(可排序)的|
+| minimum(sequence[,predicate])|返回序列的最小元素，可选地根据谓词。 如果没有提供谓词，那么元素必须是`Orderable`(可排序)的|
 
 # 断言
 
