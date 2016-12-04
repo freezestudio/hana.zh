@@ -538,6 +538,14 @@ auto switch_(Any& a) {
 | lexicographical_compare(sequence1,sequence2[,predicate])| 执行两个序列的词典比较，可选地使用自定义谓词，默认情况下使用`hana::less`|
 | maximum(sequence[,predicate])| 返回序列的最大元素，可选地根据谓词。 如果没有提供谓词，那么元素必须是`Orderable`(可排序)的|
 | minimum(sequence[,predicate])|返回序列的最小元素，可选地根据谓词。 如果没有提供谓词，那么元素必须是`Orderable`(可排序)的|
+| partition(sequence,predicate) | 将序列分成满足和不满足谓词的元素对 |
+| prepend(sequence,value) | 将元素预置到序列|
+| remove(sequence,value) | 移除所有与`value`相等的元素|
+| remove_at(sequence,index) | 移除给定索引处的元素,`index`必须是`IntegralConstant`|
+| remove_if(sequence,predicate)| 移除所有满足谓词的元素,谓词必须返回`IntegralConstant`|
+| remove_range(sequence,from,to) | 移除半开区间[from,to)的元素,这些索引必须都是`IntegralConstant`|
+|replace(sequence,oldval,newval) | 将序列中所有元素与oldval相等的值替换为newval|
+
 
 # 断言
 
