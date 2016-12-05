@@ -544,10 +544,29 @@ auto switch_(Any& a) {
 | remove_at(sequence,index) | 移除给定索引处的元素,`index`必须是`IntegralConstant`|
 | remove_if(sequence,predicate)| 移除所有满足谓词的元素,谓词必须返回`IntegralConstant`|
 | remove_range(sequence,from,to) | 移除半开区间[from,to)的元素,这些索引必须都是`IntegralConstant`|
-|replace(sequence,oldval,newval) | 将序列中所有元素与oldval相等的值替换为newval|
-
+| replace(sequence,oldval,newval) | 将序列中所有元素与oldval相等的值替换为newval|
+| replace_if(sequence,predicate,newval)|用newval替换序列中满足某些谓词的元素.|
+| reverse(sequence)|逆序排列|
+| reverse_fold(sequence[,state],f)|相当于`fold_right`.为与Boost.MPL和Boost.Fusion保持一致.|
+| size(sequence) |相当于`length`,为与C++标准库保持一致.|
+| slice(sequence,indices)|返回包含原始序列的给定索引处的元素的新序列.|
+| slice_c<from,to>(sequence)|返回包含原始序列的半开区间`[from，to)`中包含的索引处的元素的新序列.|
+| sort(sequence[,predicate]) |可选地根据谓词对序列的元素进行（稳定）排序. 如果没有提供谓词，那么元素必须是可排序的.|
+| take_back(sequence,number) |取序列的最后`n`个元素，如果`length（sequence）<= n`，则取整个序列。 `n`必须是`IntegralConstant`.|
+| take_front(sequence,number) |取序列的前`n`个元素，如果`length（sequence）<= n`，则取整个序列. `n`必须是`IntegralConstant`.|
+| take_while(sequence,predicate) |当一些谓词满足时，获取序列的元素，并返回.|
+| transform(sequence,f) |对序列的每个元素应用函数并返回结果.|
+| unique(sequence[,predicate]) |从序列中删除所有连续的重复项.谓词默认为相等，在这种情况下，元素必须是Comparable(可比较的).|
+| unpack(sequence,f) |用序列的内容调用`f`,等价于`f(x1,...,xN)`|
+| zip(s1,...,sN) | 将`N`个序列压缩成元组序列.所有序列必须具有相同的长度.|
+| zip_shortest(s1,...,sN) | 将N个序列压缩成元组序列. 返回的序列具有最短输入序列的长度. |
+| zip_with(f,s1,...,sN) | 用N元函数压缩N个序列.所有序列必须具有相同的长度.|
+| zip_shortest_with(f,s1,...,sN) |用N元函数压缩N个序列.返回的序列具有最短输入序列的长度.|
 
 # 断言
 
+在本教程的其余部分，您将看到使用不同类型的断言（如`BOOST_HANA_RUNTIME_CHECK`和`BOOST_HANA_CONSTANT_CHECK`）的代码段。 像任何合理的断言宏，它们基本上检查它们给出的条件是否满足。 然而，在异构编程的上下文中，一些信息在编译时是已知的，而其他信息仅在运行时可知。 在上下文中使用的断言的确切类型告诉您所声明的条件是否可以在编译时可知，或者是否必须在运行时计算，这是非常宝贵的信息。 下面是教程中使用的不同类型的断言，以及它们的特殊的简述。 有关更多详细信息，您应该检查[对断言的引用]().
 
-
+| 断言 | 说明|
+------|------
+|BOOST_HANA_RUNTIME_CHECK||
