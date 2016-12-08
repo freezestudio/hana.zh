@@ -19,7 +19,7 @@
         {
             "name": "Win32",
             "includePath": [
-                "D:/Program Files (x86)/Microsoft Visual Studio 14.0/VC/include",
+                "D:/Program Files/Microsoft Visual Studio/VC/Tools/MSVC/14.10.24629/include",
                 "./",
                 "C:/Program Files (x86)/Windows Kits/10/Include/10.0.14393.0/um"
             ],
