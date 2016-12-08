@@ -569,4 +569,11 @@ auto switch_(Any& a) {
 
 | 断言 | 说明|
 ------|------
-|BOOST_HANA_RUNTIME_CHECK||
+|BOOST_HANA_RUNTIME_CHECK|在直到运行时才可知的条件上断言.这种断言提供了最弱的保证形式.|
+|BOOST_HANA_CONSTEXPR_CHECK|如果在常量表达式中允许lambda,则在`constexpr`的条件上断言.换句话说,它不是一个`static_assert`的唯一原因是语言限制了lambda不能出现在常量表达式中,这个限制可能会在c++17中解除.|
+|static_assert|在`constexpr`条件上断言.强度上大于`BOOST_HANA_CONSTEXPR_CHECK`,因为它要求条件是一个`constexpr`表达式,因此它保证了表达式中使用的算法是`constexpr`友好的.|
+|BOOST_HANA_CONSTANT_CHECK|在一个布尔型`IntegralConstant`条件上断言.这种断言提供了最强的保证形式.因为`IntegralConstant`可以转换为`constexpr`值,即使它本身不是`constexpr`.|
+
+# 编译期数值
+
+
