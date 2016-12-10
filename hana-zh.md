@@ -576,4 +576,164 @@ auto switch_(Any& a) {
 
 # 编译期数值
 
+本节介绍`IntegralConstant`的重要概念和Hana的元编程范式背后的哲学.让我们从一个奇怪的问题开始. 什么是`integral_constant`?
 
+``` C++
+template<class T, T v>
+struct integral_constant{
+    static constexpr T value=v;
+    typedef T value_type;
+    typedef integral_constant type;
+    constexpr operator value_type() const noexcept{return value;}
+    constexpr value_type operator()() const noexcept{return value;}
+};
+```
+
+**注意**
+* 如果你觉得这些很新奇，你可以需要看看`std::integral_constant`[文档](http://en.cppreference.com/w/cpp/types/integral_constant)
+
+一个有效的回答是,`integral_constant`表示数值的类型编码,或者更一般地表示为任何整型对象.比如,我们可以使用模板别名很容易地在该表示中的数值上定义后继函数：
+
+``` C++
+template<typename N>
+using succ=integral_constant<int,N::value+1>;
+
+using one=integral_constant<int,1>;
+using two=succ<one>;
+using three=succ<two>;
+// ...
+```
+
+通常将这种使用`integral_constant`的方式用于模板元编程的类型实体.我们还会看到另一种`integral_constant`使用方式是作为一个运行时对象,代表一个整型的`constexpr`值:
+
+``` C++
+auto one=integral_constant<int,1>{};
+```
+
+这里,虽然`one`没有标记为`constexpr`,它所拥有的抽象值(一个`constexpr`的 1)在编译期仍然可用,因为该值被编码到`one`类型中,事实上，即使`one`不是`constexpr`,我们也可以用`decltype`检索它表示的编译期值:
+
+``` C++
+auto one=integral_constant<int,1>{};
+constexpr int one_constexpr=decltype(one)::value;
+```
+
+但是为什么我们会想把`integral_constant`当作对象而不是类型实体呢?为了看是为什么,考虑我们现在如果实现之前同样的后继函数:
+
+``` C++
+template<typename N>
+auto succ(N){
+    return integral_constant<int,N::value+1>{};
+}
+
+auto one=integral_constant<int,1>{};
+auto two=succ(one);
+auto three=succ(two);
+```
+
+您注意到了什么新东西吗? 区别在于，不是在类型级别使用模板别名实现`succ`，我们现在使用模板函数在值级别实现它. 此外，我们现在可以使用与普通C++相同的语法执行编译时算术.这种将编译期实体看作对象而不是类型的方式是Hana的表达力的关键。
+
+##编译期计算##
+
+MPL定义了多个[算术运算符](http://www.boost.org/doc/libs/release/libs/mpl/doc/refmanual/arithmetic-operations.html)以支持使用`integral_constant`做编译期计算.一个典型的例子是`plus`运算符,其大致实现如下：
+
+``` C++
+template<typename X,typename Y>
+struct plus{
+    using type=integral_constant<decltype(X::value+Y::value),X::value+Y::value>;
+};
+
+using three=plus<integral_constant<int,1>,integral_constant<int,2>>::type;
+```
+
+通过将`integral_constant`作为对象而不是类型来看待，从元函数到函数的转换非常简单：
+
+``` C++
+template<typename V,V v,typename U,U u>
+constexpr auto operator+(integral_constant<V,v>,integral_constant<U,u>){
+    return integral_constant<decltype(v+u>),v+u>{};
+}
+
+auto three=integral_constant<int,1>{}+integral_constant<int,2>{};
+```
+
+强调这个操作符不返回正常整数的事实是非常重要. 相反，它返回一个值初始化的对象，其类型包含加法的结果。 该对象中包含的唯一有用的信息实际上是在它的类型，我们正在创建一个对象，因为它允许我们使用这个漂亮的值级语法。 事实证明，我们可以通过使用[C++14变量模板](http://en.wikipedia.org/wiki/C%2B%2B14#Variable_templates)来简化`integral_constant`建，从而使这种语法更好：
+
+``` C++
+template<int i>
+constexpr integral_constant<int,i> int_c{};
+
+auto three=int_c<1>+int_c<2>;
+```
+
+现在我们谈论的是在初始类型层面方法中表现出的增强体验，不是吗？ 但还有更多; 我们还可以使用C ++ 14用户定义的文字使这个过程更简单：
+
+``` C++
+template<char... digits>
+constexpr auto operator"" _c(){
+    //parse the digits and return an integral_constant
+}
+
+auto three=1_c+3_c;
+```
+
+Hana提供了自己的`integral_constants`,它定义了算术运算符,就像我们上面显示的一样, Hana还提供了变量模板，可以轻松创建不同类型的`integral_constants`：`int_c，long_c，bool_c`等.这允许你省略后面的`{}`大括号，否则需要值来初始化这些对象。 当然，也提供`_c`后缀; 它是`hana :: literals`命名空间的一部分，您必须在使用它之前将其导入到命名空间中：
+
+``` C++
+using namesapce hana::literals;
+
+auto three=1_c+3_c;
+```
+
+这样,你可以做编译期计算,而不必尴尬的与类型级别的特性斗争,你的同事现在将能够了解发生了什么.
+
+##示例：距离公式
+
+为了说明它是多么的好用,让我们实现一个函数在编译期计算一个2-D欧氏距离.作为提醒,2-D平面中的两个点的欧几里得距离由下式给出
+
+![distance](./res/20161210133037.jpg)
+
+先看看用类型计算的样子(使用MPL):
+
+``` C++
+template<typename P1,typename P2>
+struct distance{
+    using xs=typename mpl::minus<typename P1::x,typename P2::x>::type;
+    using ys=typename mpl::minus<typename p1::y,typename P2::y>::type;
+
+    using type=typename sqrt<
+        typename mpl::plus<
+            typename mpl::multiplies<xs,xs>::type,
+            typename mpl::multiplies<ys,ys>::type
+        >::type
+    >::type;
+};
+
+static_assert(mpl::equal_to<
+    distance<point<mpl::int_<3>,mpl::int_<5>>,point<<mpl::int_<7>,mpl::int_<2>>>::type,
+    mpl::int_<5>
+>::value);
+```
+
+嗯...现在,让我们用上面提到的值级方法来实现它：
+
+``` C++
+template<typename P1,typename P2>
+constexpr auto distance(P1 p1,P2 p2){
+    auto xs=p1.x-p2.x;
+    auto ys=p1.y-p2.y;
+    return sqrt(xs*xs+ys*ys);
+}
+
+BOOST_HANA_CONSTANT_CHECK(distance(point(3_c,5_c),point(7_c,2_c))==5_c);
+```
+
+这个版本看起来简洁多了.然而,这还没完。注意到`distance`函数看起来和你为计算动态值的欧几里德距离所写的一样吗？ 事实上，因为我们在动态值和编译期计算使用了相同的语法,为其编写的通用函数将能同时工作于编译期和运行期！
+
+``` C++
+auto p1=point(3,5); // dynamic values now
+auto p2=point(7,2); //
+BOOST_HANA_RUNTIME_CHECK(distance(p1,p2)==5); //same function works!
+```
+*不用改变任何代码*,我们可以在运行时使`distance`函数正确地工作。
+
+##编译期分发##
