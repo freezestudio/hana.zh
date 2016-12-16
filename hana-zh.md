@@ -737,3 +737,45 @@ BOOST_HANA_RUNTIME_CHECK(distance(p1,p2)==5); //same function works!
 *不用改变任何代码*,我们可以在运行时使`distance`函数正确地工作。
 
 ##编译期分发##
+
+现在我们有了编译期计算，下一步需要解决编译期分发问题，元编程时，如果一些条件为真则编译一段代码，否则编译另一段代码是很有用的。就好像是[static_if](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2015/n4461.html)一样.还没搞清楚为什么需要编译期分发?先考察下面的代码(改编自[N4461](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2015/n4461.html)):
+
+``` C++
+template<typename T,typename... Args>
+std::enable_if_t<std::is_constructible<T,Args...>::value,std::unique_ptr<T>>
+make_unique(Args&&... args){
+    return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
+}
+
+template<typename T,typename... Args>
+std::enable_if_t<!std::is_constructible<T,Args...>::value,std::unique_ptr<T>>
+make_unique(Args&&... args){
+    return std::unique_ptr<T>(new T{std::forward<Args>(args)...});
+}
+```
+
+以上代码使用构造函数正规的语法形式创建`std::unique_ptr`.为此,它利用`SFINAE`实现两个不同的重载.现在,每个看到这些代码的人都不仅会问,为什么不能更简单一点:
+
+``` C++
+template <typename T, typename ...Args>
+std::unique_ptr<T> make_unique(Args&&... args) {
+  if (std::is_constructible<T, Args...>::value)
+    return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
+  else
+    return std::unique_ptr<T>(new T{std::forward<Args>(args)...});
+}
+```
+
+原因是编译器需要编译`if`语句的两个分支，而不考虑条件（即使它在编译时是已知的）.但是当`T`不能从`Args...`构造时，第二个分支将无法编译，这将导致硬编译错误。 我们真正需要的是找一种方法告诉编译器，当条件为真时，`不要编译`第二个分支第一个分支。
+
+为了模拟这一点，Hana提供了一个`if_`函数，它像一个普通的`if`语句一样工作，除了它需要一个可以是IntegralConstant的条件，并返回由条件选择的两个值之一（可能有不同的类型）之外. 如果条件为真，则返回第一个值，否则返回第二个值。 一个有点空洞的例子如下：
+
+``` C++
+auto one_two_three=hana::if_(hana::true_c,123,"hello");
+auto hello=hana::if_(hana::false_c,123,"hello");
+```
+
+**注意**
+
+* `hana::true_c`和`hana::false_c`仅为编译期布尔`IntegralConstant`值.分别表示编译期真值和假值.
+
