@@ -777,5 +777,35 @@ auto hello=hana::if_(hana::false_c,123,"hello");
 
 **注意**
 
-* `hana::true_c`和`hana::false_c`仅为编译期布尔`IntegralConstant`值.分别表示编译期真值和假值.
+* `hana::true_c`和`hana::false_c`为编译期`IntegralConstant`布尔值.分别表示编译期真值和假值.
+
+`one_two_three`等于`123`,`hello`等于`"hello"`.从另一个角度看,`if_`很像`?:`运算符,除了`:`分割符两边可以有不同类型外:
+
+``` C++
+//这两条语句都失败了,因为分支有不兼容的类型.
+auto one_two_three=hana::true_c ? 123 : "hello";
+auto hello=hana::false_c ? 123 : "hello";
+```
+
+好吧，这样的代码看起来非常简洁，但是编译器不支持这个偷懒的办法。那么，如何实现类似`if`的分支呢?我们决定在分支中使用泛型`lambda`,借助`hana::if_`来执行我们想要的分支.以下重写`make_unique`:
+
+``` C++
+template<typename T,typename... Args>
+std::unique_ptr<T> make_unique(Args&&... args){
+    return hana::if_(std::is_constructible<T,Args...>{},
+        [](auto&&... x){return std::unique_ptr<T>(new T(std::forward<Args>(x)...));},
+        [](auto&&... x){return std::unique_ptr<T>(new T{std::forward<Args>(x)...});}
+    )(std::forward<Args>(args)...);
+}
+```
+
+如果条件为真,`hana::if_`执行第一个泛型lambda分支,为假则执行第二个分支.`hana::if_`仅简单返回某分支,我们传入了`(std::forward<Args>(args)...)`参数以便返回的lambda立即执行,这里，预期的泛型lambda将参数`x...`用`args...`实参执行并返回结果.
+
+这样做（立即传参数）的原因是因为每个分支的主体只能在所有`x...`类型已知时才被实例化.事实上,由于分支是泛型lambda,在它被调用之前,参数的类型是未知的,编译器必须在检查lambda函数体内类型之前等待`x...`的类型变为已知.因为当条件不满足（`hana::if_`忽略了它）时，错误的lambda从不被调用，所以失败的lambda的函数体从不被类型检查，因此不会发生编译错误。
+
+**注意**
+
+* `if_`的分支是lambda,
+
+
 
