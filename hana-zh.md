@@ -805,7 +805,51 @@ std::unique_ptr<T> make_unique(Args&&... args){
 
 **注意**
 
-* `if_`的分支是lambda,
+* `if_`的分支是lambda,因此，它们从不同的途径构造了`make_unique`函数.在这些分支中出现的变量必须被lambdas捕获或作为参数传递给它们，因此它们受到捕获或传递的方式（通过值，引用等）的影响。
+
+由于这种将分支表达为lambda类型然后调用它们的模式是非常常见的，Hana提供了一个`eval_if`函数，其目的是使编译时分支更容易。 `eval_if`来自于一个事实，在lambda中，可以接收输入数据作为参数或从上下文中捕获它。 然而，为了模拟语言级`if`语句，隐含地从封闭范围捕获变量通常更自然. 因此，我们更喜欢这样写:
+
+``` C++
+template <typename T, typename ...Args>
+std::unique_ptr<T> make_unique(Args&&... args) {
+  return hana::if_(std::is_constructible<T, Args...>{},
+    [&] { return std::unique_ptr<T>(new T(std::forward<Args>(args)...)); },
+    [&] { return std::unique_ptr<T>(new T{std::forward<Args>(args)...}); }
+  );
+}
+```
+
+这里，我们捕获了来自闭包范围的`args ...`变量，这就不需要我们引入新的`x ...`变量并将它们作为参数传递给分支。 然而，还两个问题. 首先，这样做将不会实现正确的结果，因为`hana::if_`将最终返回一个lambda，而不是返回调用该lambda的结果. 要解决这个问题，我们可以使用`hana::eval_if`而不是`hana::if_`：
+
+``` C++
+template <typename T, typename ...Args>
+std::unique_ptr<T> make_unique(Args&&... args) {
+  return hana::eval_if(std::is_constructible<T, Args...>{},
+    [&] { return std::unique_ptr<T>(new T(std::forward<Args>(args)...)); },
+    [&] { return std::unique_ptr<T>(new T{std::forward<Args>(args)...}); }
+  );
+}
+```
+
+这里，我们使用`[&]`通过引用捕获闭包的`args ...`，我们不需要接收任何参数. 此外,`hana::eval_if`假定其参数是可以被调用的分支，它将负责调用由条件选择的分支. 然而，这仍然会导致编译失败，因为lambda的主体不再有任何依赖，因而将对两个分支进行语义分析，即使只有一个将被使用. 这个问题的解决方案是使lambda的主体人为地依赖于某些东西，以防止编译器在lambda被实际使用之前执行语义分析. 为了使这一点成为可能，`hana::eval_if`将使用标识函数（一个函数无改变地返回其参数）调用所选的分支，如果分支接受这样的参数：
+
+``` C++
+template <typename T, typename ...Args>
+std::unique_ptr<T> make_unique(Args&&... args) {
+  return hana::eval_if(std::is_constructible<T, Args...>{},
+    [&](auto _) { return std::unique_ptr<T>(new T(std::forward<Args>(_(args))...)); },
+    [&](auto _) { return std::unique_ptr<T>(new T{std::forward<Args>(_(args))...}); }
+  );
+}
+```
+
+这里，分支的主体采用约定的称为`_`的附加参数.这个参数将由`hana::eval_if`提供给所选择的分支. 然后，我们使用`_`作为我们想要在每个分支的主体内依赖的变量的函数.使用`_`会发生什么呢?`_`是一个直接原样返回其参数的函数.但是，编译器在lambda实际被调用之前不可能知道它，因此它不能知道`_(args)`的类型.这样一来,会阻止编译器执行语义分析，并且不会发生编译错误.另外，由于`_(x)`保证等于`x`，我们知道我们实际上没有通过使用这个技巧改变分支的语义.
+
+虽然使用这个技巧可能看起来很麻烦，但当处理分支中的许多变量时，它可能非常有用。此外，不需要用`_`来包装所有变量; 只有那些包装类型检查必须延迟的表达式中涉及的变量才需要使用它.在Hana中还有一些需要了解的编译时分支，参见`hana::eval_if`,`hana::if_`和`hana::lazy`来深入了解它们.
+
+##为什么停到这里了?##
+
+为什么我们应该限制算术运算和分支?当您开始将IntegralConstants视为对象时，使用更多通常有用的函数来增加其接口变得明智。 例如，Hana的IntegralConstants定义了一个`times`成员函数，可用于调用函数一定次数，这对于循环展开尤其有用：
 
 
 
