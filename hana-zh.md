@@ -849,7 +849,51 @@ std::unique_ptr<T> make_unique(Args&&... args) {
 
 ##为什么停到这里了?##
 
-为什么我们应该限制算术运算和分支?当您开始将IntegralConstants视为对象时，使用更多通常有用的函数来增加其接口变得明智。 例如，Hana的IntegralConstants定义了一个`times`成员函数，可用于调用函数一定次数，这对于循环展开尤其有用：
+为什么我们应该限制算术运算和分支?当您开始将IntegralConstants视为对象时，使用更多通常有用的函数来增加其接口更为明智。 例如，Hana的IntegralConstants定义了一个`times`成员函数，可用于调用函数一定次数，这对于循环展开尤其有用：
+
+``` C++
+__attribute__((noinline)) void f() { }
+int main() {
+  hana::int_c<10>.times(f);
+}
+```
+
+以上代码在编译会展开为调用10次`f`.相当于如下操作:
+
+``` C++
+f();f();...f();//10 times
+```
+
+**注意**
+
+* 通常[要小心](https://youtu.be/qkzaZumt_uk?t=4478)手动展开循环或手动执行其他此类优化.在大多数情况下,你的编译器在优化时可能比你更好.
+
+`IntegralConstant`的另一个很好的用途是定义更好的运算符来索引异构序列.`std::tuple`必须使用`std::get`访问,`hana::tuple`可以使用用于标准库容器的熟悉的`operator []`来访问：
+
+``` C++
+auto values=hana::make_tuple(1,'x',3.4f);
+char x=values[1_c];
+```
+
+这是怎样让工作变得简单的呢. 基本上,`hana::tuple`定义一个使用一个整数常量的运算符`[]`而不是一个通常常的整数,类似于:
+
+``` C++
+template<typename N>
+constexpr decltype(auto) operator[](N const&){
+    return std::get<N::value>(*this);
+}
+```
+
+本节,`IntegralConstant`部分结束了,本节介绍 了Hana的新的元编程方法.如果你喜欢你所看到的.本教程的其余部分应该会感到更加熟悉.
+
+# 类型计算
+
+在这一点上,如果你有兴趣像MPL一样进行类型计算,你可能会想知道Hana如何帮助你.不用担心,Hana提供了一种通过将类型表示为值来执行具有大量表达性的类型计算的方法,就像我们将编译时数字表示为值一样. 这是一种全新的接近元编程的方法,如果你想熟练使用Hana,你应该尝试将你的旧MPL习惯放在一边.
+
+但是,请注意,现代C ++的功能,如[自动推导返回类型](http://en.wikipedia.org/wiki/C%2B%2B14#Function_return_type_deduction),在许多情况下不需要类型计算. 因此,在考虑做一个类型计算之前,你应该问自己是否有一个更简单的方法来实现你想要实现的.在大多数情况下,答案是肯定的. 然而,当答案是否定的时候,Hana将为你提供核力量设施来做需要做的事情.
+
+## 类型作为对象
+
 
 
 
