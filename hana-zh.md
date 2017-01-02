@@ -41,8 +41,11 @@ Hana仅依赖于C++14编译器和标准库,除此之外再无其它要求了.以
 
 * 泛型 `lambda`
 * 通用 `constexpr`
+* 变量模板
 * 自动推导的返回类型
 * 所有支持C++14的`<type_traits>`头文件中的类型特性
+
+查看[wiki](https://github.com/boostorg/hana/wiki)以获取更多平台相关信息.
 
 # 技术支持
 
@@ -76,7 +79,7 @@ constexpr int factorial(int n){
 }
 
 template<typename T,std::size_t N,typename F>
-constexpr std::array<std::result_of_t<F(T),N> transform(std::array<T,N> arr,F f){
+constexpr std::array<std::result_of_t<F(T)>,N> transform(std::array<T,N> arr,F f){
     // ...
 }
 
@@ -176,7 +179,7 @@ assert(hana::reverse(names)==hana::make_tuple("Snoopy","Garfield","Nemo"));
 
 * `1_c`是一个用[C++14用户自定义字面量](http://en.wikipedia.org/wiki/C%2B%2B11#User-defined_literals)创建的[编译时数值]().此自定义字面量位于`boost::hana::literals`名字空间,故此using了该名字空间.
 
-注意我们是如何将[C++14泛型lambda]传递到`transform`的;必须要这样做是因为lambda首先用`Fish`来调用的,接着用`Cat`,最后用`Dog`来调用,它们都是类型不同的.Hana提供了C++标准提供的大多数算法,除了它们工作在元组和异构容器上而不是在`std::tuple`等之上的之外.除了使用异构值之外,Hana还使用自然语法执行类型计算,所有这些都在编译期完成,没有任何开销:
+注意我们是如何将[C++14泛型lambda](http://en.wikipedia.org/wiki/C%2B%2B14#Generic_lambdas)传递到`transform`的;必须要这样做是因为lambda首先用`Fish`来调用的,接着用`Cat`,最后用`Dog`来调用,它们都是类型不同的.Hana提供了C++标准提供的大多数算法,除了它们工作在元组和异构容器上而不是在`std::tuple`等之上的之外.除了使用异构值之外,Hana还使用自然语法执行类型计算,所有这些都在编译期完成,没有任何开销:
 
 ```C++
 auto animal_types=hana::make_tuple(hana::type_c<Fish*>,hana::type_c<Cat&>,hana::type_c<Dog>);
@@ -362,7 +365,7 @@ auto switch_(Any& a){
 }
 ```
 
-注意我们是怎样用`static_assert`来处理`nothing`结果的.担心`default_`是非constexpr对象吗?不用.Hana能确保非编译期已知的信息传递到运行时.这显示能保证`default_`必须存在.下一步该处理非default的case了,我们这里用`filter`算法,它可以使序列仅保留满足谓词的元素:
+注意我们是怎样用`static_assert`来处理`nothing`结果的.担心`default_`是非constexpr对象吗?不用.Hana能确保非编译期已知的信息传递到运行时.这显然能保证`default_`必须存在.下一步该处理非default的case了,我们这里用`filter`算法,它可以使序列仅保留满足谓词的元素:
 
 ``` C++
 template<typename Any>
@@ -893,6 +896,64 @@ constexpr decltype(auto) operator[](N const&){
 但是,请注意,现代C ++的功能,如[自动推导返回类型](http://en.wikipedia.org/wiki/C%2B%2B14#Function_return_type_deduction),在许多情况下不需要类型计算. 因此,在考虑做一个类型计算之前,你应该问自己是否有一个更简单的方法来实现你想要实现的.在大多数情况下,答案是肯定的. 然而,当答案是否定的时候,Hana将为你提供核力量设施来做需要做的事情.
 
 ## 类型作为对象
+
+Hana中类型计算的关键点基本上与编译时计算的方法相同.基本想法是将编译时实体表示为对象,将它们包装到某种容器中. 对于`IntegralConstant`,编译时实体是整型的常量表达式,我们使用的包装器是`integral_constant`. 在本节中，编译时实体将是类型,我们将使用的包装器称为`type`,就像我们对`IntegralConstant`做的一样,让我们开始定义一个可以用来表示类型的虚拟模板：
+
+``` C++
+template<typename T>
+struct basic_type{
+    //empty (for now)
+};
+
+basic_type<int> Int{};
+basic_type<char> Char{};
+```
+
+**注意**
+
+* 在这里我们使用`basic_type`名字，是因为我们仅构建一个hana提供版本的最简版本。
+
+虽然这看起来完全没用，但实际上足以开始编写看起来像函数的元函数了。 让我们考虑以下`std::add_pointer`和`std::is_pointer`的替代实现：
+
+``` C++
+template<typename T>
+constexpr basic_type<T*> add_pointer(basic_type<T> const&)
+{ return {}; }
+
+template<typename T>
+constexpr auto is_pointer(basic_type<T> const&)
+{ return hana::bool_c<false>; }
+
+template<typename T>
+constexpr auto is_pointer(basic_type<T*> const&)
+{ return hana::bool_c<true>; }
+```
+
+我们刚刚编写了看起来像函数的元函数，就像我们在上一节中将编译时算术元函数编写为异构C++操作符一样. 以下是我们如何使用它们：
+
+``` C++
+basic_type<int> t{};
+auto p=add_pointer(t);
+BOOST_HANA_CONSTANT_CHECK(is_pointer(p));
+```
+
+注意到我们现在如何使用正常的函数调用语法来执行类型级别的计算了吗? 这类似于使用编译时数值如何使用正常的C++操作符来执行编译时计算. 像我们对integral_constant所做的一样,我们还可以进一步使用C++ 14变量模板为创建类型提供语法糖：
+
+``` c++
+template<typename T>
+constexpr basic_type<T> type_c{};
+
+auto t=type_c<int>;
+auto p=add_pointer(t);
+BOOST_HANA_CONSTANT_CHECK(is_pointer(p));
+```
+
+**注意**
+
+* 这不是`hana::type_c`变量模板完整实现，因为有些细微不同之处;仅用于解释的目的.把它仍到一边,参考`hana::type`的实现，以确切知道您可以从`hana::type_c<...>`中获得什么.
+
+## 优势
+
 
 
 
