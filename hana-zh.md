@@ -954,6 +954,39 @@ BOOST_HANA_CONSTANT_CHECK(is_pointer(p));
 
 ## 优势
 
+这样做有什么好处呢？因为`type_c<...>`是一个对象,我们可以将它存储到像`tuple`这样的异构容器中,我们可以移动它,也可以将它传递(或者返回)到函数中,而且我们可以用在任何需要对象的地方:
+
+``` C++
+auto types=hana::make_tuple(hana::type_c<int*>,hana::type_c<char&>,hana::type_c<void>);
+auto char_ref=types[1_c];
+
+BOOST_HANA_CONSTANT_CHECK(char_ref==hana::type_c<char&>);
+```
+
+**注意**
+
+* 当需要多个类型时,编写`make_tuple(type_c<T>...)`可能会觉得比较繁嗦,为此,Hana提供了变量模板`tuple_t<T...>`,它是`make_tuple(type_c<T>...)`的语法糖.
+
+另外,请注意,由于上面的元组实际上只是一个正常的异构序列,就像ints的元组上一样,我们可以对该序列应用异构算法.此外,由于我们只是操作对象,我们现在可以使用完整的语言支持,而不仅仅是在类型级别提供的小子集.例如,考虑删除不是引用的所有类型或来自类型序列的指针的任务.如果用MPL,我们必须使用占位符表达式来表达谓词,看起来较为笨重:
+
+```C++
+using types = mpl::vector<int, char&, void*>;
+using ts = mpl::copy_if<types, mpl::or_<std::is_pointer<mpl::_1>,
+                                        std::is_reference<mpl::_1>>>::type;
+//                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+//                             placeholder expression
+static_assert(mpl::equal<ts, mpl::vector<char&, void*>>::value, "");
+```
+
+现在,由于我们在操作对象,我们可以使用完整的语言支持,并使用一个通用的lambda,这样的代码有更好的可读性：
+
+```C++
+auto types = hana::tuple_t<int*, char&, void>;
+auto ts = hana::filter(types, [](auto t) {
+  return is_pointer(t) || is_reference(t);
+});
+BOOST_HANA_CONSTANT_CHECK(ts == hana::tuple_t<int*, char&>);
+```
 
 
 
