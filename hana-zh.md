@@ -988,6 +988,350 @@ auto ts = hana::filter(types, [](auto t) {
 BOOST_HANA_CONSTANT_CHECK(ts == hana::tuple_t<int*, char&>);
 ```
 
+由于Hana对所有异构容器进行统一处理,这种将类型表示为值的方法也具有以下优点：异构计算和类型计算现在只需要单个库即可. 事实上，虽然我们通常需要两个不同的库来执行几乎相同的任务，但我们现在想要一个单独的库来完成它们.再次,考虑使用谓词过滤序列的任务.如果使用MPL和Fusion，我们必须这样做：
+
+```C++
+// types (MPL)
+using types = mpl::vector<int*, char&, void>;
+using ts = mpl::copy_if<types, mpl::or_<std::is_pointer<mpl::_1>,
+                                        std::is_reference<mpl::_1>>>::type;
+// values (Fusion)
+auto values = fusion::make_vector(1, 'c', nullptr, 3.5);
+auto vs = fusion::filter_if<std::is_integral<mpl::_1>>(values);
+```
+
+但用Hana,只要一个库就行了.注意看我们怎么使用相似的算法和容器的，并且只调整谓词，以便它可以对值进行操作：
+
+```C++
+// types
+auto types = hana::tuple_t<int*, char&, void>;
+auto ts = hana::filter(types, [](auto t) {
+  return is_pointer(t) || is_reference(t);
+});
+
+// values
+auto values = hana::make_tuple(1, 'c', nullptr, 3.5);
+auto vs = hana::filter(values, [](auto const& t) {
+  return is_integral(hana::typeid_(t));
+});
+```
+
+但这不是全部。 实际上，具有用于类型和值计算的统一语法允许我们在异构容器的接口中实现更大的一致性。 例如，考虑创建将类型与值相关联，然后访问它的元素的异构映射的简单任务。 使用Fusion,您那未经训练的眼睛不会一看到就能理解的：
+
+```C++
+auto map = fusion::make_map<char, int, long, float, double, void>(
+  "char", "int", "long", "float", "double", "void"
+);
+std::string Int = fusion::at_key<int>(map);
+BOOST_HANA_RUNTIME_CHECK(Int == "int");
+```
+
+但是，对于类型和值统一语法，同样的事情变得更加清楚：
+
+```C++
+auto map = hana::make_map(
+  hana::make_pair(hana::type_c<char>,   "char"),
+  hana::make_pair(hana::type_c<int>,    "int"),
+  hana::make_pair(hana::type_c<long>,   "long"),
+  hana::make_pair(hana::type_c<float>,  "float"),
+  hana::make_pair(hana::type_c<double>, "double")
+);
+std::string Int = map[hana::type_c<int>];
+BOOST_HANA_RUNTIME_CHECK(Int == "int");
+```
+
+虽然以Hana的方式需要更多的代码行，但它更可读，更接近我们期望的初始化方式。
+
+## 使用此方式工作
+
+到目前为止，我们可以将类型表示为值，并使用通常的C++语法对这些对象执行类型级计算。 这很好，但它不是非常有用，因为我们没有办法从对象表示推导出正常的C++类型。 例如，我们如何声明一个从类型计算的结果获取的变量类型？
+
+```C++
+auto t = add_pointer(hana::type_c<int>); // could be a complex type computation
+using T = the-type-represented-by-t;
+T var = ...;
+```
+
+现在，没有简单的方法去做以上工作。 为了更容易实现，我们丰富了上面定义的basic_type容器的接口。 而不是一个空的结构，我们现在定义为：
+
+```C++
+template <typename T>
+struct basic_type {
+  using type = T;
+};
+```
+
+**注意**
+
+* 这相当于使basic_type是MPL意义上的元函数。
+
+这样，我们可以使用`decltype`来容易地访问由`type_c<...>`对象表示的实际C++类型：
+
+```C++
+auto t = add_pointer(hana::type_c<int>);
+using T = decltype(t)::type; // fetches basic_type<T>::type
+T var = ...;
+```
+
+一般来说，使用Hana进行类型级元编程需要三步：
+
+1. 使用`hana::type_c<...>`将对象表示为对象
+2. 使用值语法执行类型转换
+3. 使用decltype(...)::type解用类型
+
+现在，你一定认为这是令人难以置信的繁琐。 在现实中，它有以下几个原因。 首先，这种包装和解包只需要在一些非常薄的边界发生。
+
+```C++
+auto t = hana::type_c<T>;
+auto result = huge_type_computation(t);
+using Result = decltype(result)::type;
+```
+
+此外，由于您在计算中获得处理对象（无需包装/解开）的优势，因此包装和解包的成本将摊销在整个计算上。 因此，对于复杂类型的计算，根据在该计算内的值的工作的表达性增益，该三步骤过程的句法噪声很快变得可忽略。 另外，使用值而不是类型意味着我们可以避免在整个地方键入typename和template，这在经典元编程中占了很多句法噪声。
+
+另一点是，并不总是需要三个完整的步骤。 事实上，有时候只需要一个类型的计算并查询结果，而不必将结果作为一个普通的C++类型：
+
+```C++
+auto t = hana::type_c<T>;
+auto result = type_computation(t);
+BOOST_HANA_CONSTANT_CHECK(is_pointer(result)); // third step skipped
+```
+
+在这种情况下，我们可以跳过第三步，因为我们不需要访问由result表示的实际类型。 在其他情况下，可以避免第一步，就像使用`tuple_t`，它没有比任何其他纯类型级别方法更多的语法噪声：
+
+```C++
+auto types = hana::tuple_t<int*, char&, void>; // first step skipped
+auto pointers = hana::transform(types, [](auto t) {
+  return add_pointer(t);
+});
+```
+
+对此持怀疑态度的读者，让我们考虑一个找到类型序列中最小类型的任务。 这是一个很短的类型计算的一个很好的例子，这是我们期望新的范式受到最大的影响的地方。 正如你将看到的，即使对于小计算，事情仍然可管理。 首先，让我们用MPL实现它：
+
+```C++
+template <typename ...T>
+struct smallest
+  : mpl::deref<
+    typename mpl::min_element<
+      mpl::vector<T...>,
+      mpl::less<mpl::sizeof_<mpl::_1>, mpl::sizeof_<mpl::_2>>
+    >::type
+  >
+{ };
+template <typename ...T>
+using smallest_t = typename smallest<T...>::type;
+static_assert(std::is_same<
+  smallest_t<char, long, long double>,
+  char
+>::value, "");
+```
+
+结果是很有可读性（对于任何熟悉MPL的人）。 现在让我们使用Hana实现相同的事情：
+
+```C++
+template <typename ...T>
+auto smallest = hana::minimum(hana::make_tuple(hana::type_c<T>...), [](auto t, auto u) {
+  return hana::sizeof_(t) < hana::sizeof_(u);
+});
+template <typename ...T>
+using smallest_t = typename decltype(smallest<T...>)::type;
+static_assert(std::is_same<
+  smallest_t<char, long, long double>, char
+>::value, "");
+```
+
+正如你所看到的，3步过程的句法噪声几乎完全被其余的计算所掩盖。
+
+## The generic lifting process
+
+我们以函数形式引入的第一个类型计算如下：
+
+```C++
+template <typename T>
+constexpr auto add_pointer(hana::basic_type<T> const&) {
+  return hana::type<T*>;
+}
+```
+
+我们需要将它写成如下样子，虽然看起来复杂了一些：
+
+```C++
+template <typename T>
+constexpr auto add_pointer(hana::basic_type<T> const&) {
+  return hana::type_c<typename std::add_pointer<T>::type>;
+}
+```
+
+然而，这个实现强调的事实，我们真的模拟一个现有的元函数，并简单地表示为一个函数。 换句话说，我们通过创建我们自己的add_pointer函数来提取一个元函数（std :: add_pointer）到值的世界。 事实证明，这个提升过程是一个通用的过程。 事实上，给定任何元函数，我们可以写几乎相同的事情：
+
+```C++
+template <typename T>
+constexpr auto add_const(hana::basic_type<T> const&)
+{ return hana::type_c<typename std::add_const<T>::type>; }
+template <typename T>
+constexpr auto add_volatile(hana::basic_type<T> const&)
+{ return hana::type_c<typename std::add_volatile<T>::type>; }
+template <typename T>
+constexpr auto add_lvalue_reference(hana::basic_type<T> const&)
+{ return hana::type_c<typename std::add_lvalue_reference<T>::type>; }
+// etc...
+```
+
+这种机械变换很容易被抽象成可以处理任何[MPL元函数](http://www.boost.org/doc/libs/release/libs/mpl/doc/refmanual/metafunction.html)的通用提升器，如下所示：
+
+```C++
+template <template <typename> class F, typename T>
+constexpr auto metafunction(hana::basic_type<T> const&)
+{ return hana::type_c<typename F<T>::type>; }
+auto t = hana::type_c<int>;
+BOOST_HANA_CONSTANT_CHECK(metafunction<std::add_pointer>(t) == hana::type_c<int*>);
+```
+
+更一般地，我们将允许具有任何数量的参数的元函数，这带来了以下稍微呆板的实现：
+
+```C++
+template <template <typename ...> class F, typename ...T>
+constexpr auto metafunction(hana::basic_type<T> const& ...)
+{ return hana::type_c<typename F<T...>::type>; }
+BOOST_HANA_CONSTANT_CHECK(
+  metafunction<std::common_type>(hana::type_c<int>, hana::type_c<long>) == hana::type_c<long>
+);
+```
+
+Hana提供了一个类似的通用元函数升级器`hana::metafunction`。 一个小小的改进是`hana::metafunction<F>`是一个函数对象，而不是一个重载的函数，所以可以把它传递给更高阶的算法。 它也是一个稍微更强大的Metafunction概念的模型，但是现在可以安全地忽略它。 我们在本节中探讨的过程不仅适用于元函数; 它也适用于模板。 事实上，我们可以定义：
+
+```C++
+template <template <typename ...> class F, typename ...T>
+constexpr auto template_(hana::basic_type<T> const& ...)
+{ return hana::type_c<F<T...>>; }
+BOOST_HANA_CONSTANT_CHECK(
+  template_<std::vector>(hana::type_c<int>) == hana::type_c<std::vector<int>>
+);
+```
+
+Hana为名为`hana::template_`的模板提供了一个通用的提升器，它还为名为`hana::metafunction_class`的MPL元函数类提供了一个通用的提升器。 这为我们提供了一种将“传统”类型计算统一表示为函数的方法，以便使用经典类型元编程库编写的任何代码几乎可以与Hana一起使用。 例如，假设你有一大块基于MPL的代码，你想与Hana接口。 这样做的过程不会比用Hana提供的提升器包装你的元函数更难：
+
+```C++
+template <typename T>
+struct legacy {
+  using type = ...; // something you really don't want to mess with
+};
+auto types = hana::make_tuple(...);
+auto use = hana::transform(types, hana::metafunction<legacy>);
+```
+
+但是，请注意，并非所有类型级别的计算都可以使用Hana提供的工具提升。 例如，不能提升`std::extent`，因为它需要非类型模板参数。 因为没有办法在C ++中统一处理非类型模板参数，所以必须使用特定于该类型级别计算的手写函数对象：
+
+```C++
+auto extent = [](auto t, auto n) {
+  return std::extent<typename decltype(t)::type, hana::value(n)>{};
+};
+BOOST_HANA_CONSTANT_CHECK(extent(hana::type_c<char>, hana::int_c<1>) == hana::size_c<0>);
+BOOST_HANA_CONSTANT_CHECK(extent(hana::type_c<char[1][2]>, hana::int_c<1>) == hana::size_c<2>);
+```
+
+**注意**
+
+* 当从头文件<type_traits>中使用type traits时，不要忘记包含桥接文件：`std::integral_constrant`(<boost/hana/ext/std/integral_constant.hpp>)
+
+然而，在实践中，这不应该是一个问题，因为绝大多数类型级计算可以很容易地提升。 最后，由于<type_traits>头提供的metafunctions频繁使用，Hana为其中每一个提供一个提升的版本。 那些解除的traits在hana::traits命名空间，他们在<boost/hana/traits.hpp>头文件中：
+
+```C++
+BOOST_HANA_CONSTANT_CHECK(hana::traits::add_pointer(hana::type_c<int>) == hana::type_c<int*>);
+BOOST_HANA_CONSTANT_CHECK(hana::traits::common_type(hana::type_c<int>, hana::type_c<long>) == hana::type_c<long>);
+BOOST_HANA_CONSTANT_CHECK(hana::traits::is_integral(hana::type_c<int>));
+auto types = hana::tuple_t<int, char, long>;
+BOOST_HANA_CONSTANT_CHECK(hana::all_of(types, hana::traits::is_integral));
+```
+
+到这里类型计算部分就结束了。 虽然这种用于类型编程的新范例可能很难在最初使用，但随着使用它越来越有意义。 你也会来欣赏它如何模糊类型和值之间的界限，开辟新的令人兴奋的可能性和简化许多任务。
+
+# 内省
+
+## 表达式有效性检查
+
+### 非静态数值
+
+### 静态数值
+
+### 嵌套类型名
+
+### 嵌套模板
+
+## SFINAE 控制
+
+## 内省用户定义类型
+
+## 示例：生成JSON
+
+# 容器的一般性操作
+
+## 创建容器
+
+## 容器类型
+
+## 容器元素
+
+# 算法的一般性操作
+
+## 传值
+
+## (非)惰性
+
+## 生成什么？
+
+## 副作用和纯度
+
+## 正交算法
+
+# 与外部库集成
+
+# Hana 核心
+
+## Tag
+
+## Tag 分发
+
+## 模拟C++约束
+
+# 头文件组织
+
+# 结语
+
+## Fair warning: functional programming ahead
+
+# 使用此参考
+
+## 函数签名
+
+# 致谢
+
+# 词汇表
+
+# 快速问答
+
+# 附录一：高级constexpr
+
+## Constexpr剥离
+
+## Constexpr保存
+
+## 副作用
+
+# 附录二：一个Mini MPL库
+
+# 参考文档
+
+# 按字母顺序索引
+
+# 头文件
+
+# TODO 列表
+
+# Deprecated 列表
+
+# Bug 列表
+
 
 
 
