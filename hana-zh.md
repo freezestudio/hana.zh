@@ -1073,7 +1073,7 @@ using T = decltype(t)::type; // fetches basic_type<T>::type
 T var = ...;
 ```
 
-一般来说，使用Hana进行类型级元编程需要三步：
+一般来说，使用Hana进行类型元编程需要三步：
 
 1. 使用`hana::type_c<...>`将对象表示为对象
 2. 使用值语法执行类型转换
@@ -1142,7 +1142,7 @@ static_assert(std::is_same<
 
 正如你所看到的，3步过程的句法噪声几乎完全被其余的计算所掩盖。
 
-## The generic lifting process
+## 一般提升步骤
 
 我们以函数形式引入的第一个类型计算如下：
 
@@ -1248,83 +1248,2194 @@ BOOST_HANA_CONSTANT_CHECK(hana::all_of(types, hana::traits::is_integral));
 
 # 内省
 
+我们将在这里讨论静态内省，静态内省是程序在编译时检查对象类型的能力。 换句话说，它是一个在编译时与类型交互的编程接口。 例如，你曾经想检查一些未知类型是否有一个名为foo的成员？ 或者在某些时候你需要迭代结构的成员？
+
+```C++
+struct Person {
+  std::string name;
+  int age;
+};
+Person john{"John", 30};
+for (auto& member : john)
+  std::cout << member.name << ": " << member.value << std::endl;
+// name: John
+// age: 30
+```
+
+如果你在你的生活中写了一些模板，你遇到的第一个问题是检查一个成员的机会很高。 此外，任何人试图实现对象序列化，甚至只是漂亮的打印已经遇到了第二个问题。 在大多数动态语言如Python，Ruby或JavaScript中，这些问题都是完全解决的，程序员每天都使用内省来简化很多任务。 然而，作为一个C ++程序员，我们没有语言支持这些东西，这使得几个任务比他们应该更困难。 虽然语言支持可能需要正确处理这个问题，Hana使一些常见的内省模式更容易获得。
+
 ## 表达式有效性检查
+
+给定一个未知类型的对象，有时需要检查这个对象是否有一个具有某个名字的成员（或成员函数）。 这可以用于执行复杂的过载风格。 例如，考虑对支持它的对象调用toString方法的问题，但为不支持它的对象提供另一个默认实现：
+
+```C++
+template <typename T>
+std::string optionalToString(T const& obj) {
+  if (obj.toString() is a valid expression)
+    return obj.toString();
+  else
+    return "toString not defined";
+}
+```
+
+**注意**
+
+* 虽然这种技术的大多数用例将通过在标准的未来修订中的[concepts lite](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2013/n3580.pdf)概念来解决，但是仍然存在这样的情况，其中快速、脏检查比创建完全概括的概念更方便。
+
+我们如何以通用方式实现对`obj.toString()`的有效性的检查(因此它可以在其他函数中重用)? 通常，我们会坚持写一些基于SFINAE的检查：
+
+```C++
+template <typename T, typename = void>
+struct has_toString
+  : std::false_type
+{ };
+template <typename T>
+struct has_toString<T, decltype((void)std::declval<T>().toString())>
+  : std::true_type
+{ };
+```
+
+代码能很好地工作，但目的不是很清楚，大多数没有深刻的模板元编程知识的人会认为这是黑魔法。 然后，我们可以实现optionalToString：
+
+```C++
+template <typename T>
+std::string optionalToString(T const& obj) {
+  if (has_toString<T>::value)
+    return obj.toString();
+  else
+    return "toString not defined";
+}
+```
+
+**注意**
+
+* 当然，这个实现不会真正工作，因为if语句的两个分支都将被编译。 如果obj没有toString方法，if分支的编译将失败。 我们将在稍后解决这个问题。
+
+代替上面的SFINAE技巧，Hana提供了一个`is_valid`函数，可以与[C++14通用lambdas](http://en.wikipedia.org/wiki/C%2B%2B14#Generic_lambdas)组合获得一个更干净的实现同样的事情：
+
+```C++
+auto has_toString = hana::is_valid([](auto&& obj) -> decltype(obj.toString()) { });
+```
+
+这使我们有一个函数对象`has_toString`返回给定的表达式是否对我们传递给它的参数有效。 结果作为IntegralConstant返回，因此`constexpr-ness`在这里不是一个问题，因为函数的结果表示为一个类型。 现在，除了更少的冗长（这是一个单行！），意图是更清晰。 其他好处是，·has_toString·可以传递到更高阶的算法，它也可以在函数范围定义，因此没有必要污染具有实现细节的命名空间范围。 下面是我们将如何编写optionalToString：
+
+```C++
+template <typename T>
+std::string optionalToString(T const& obj) {
+  if (has_toString(obj))
+    return obj.toString();
+  else
+    return "toString not defined";
+}
+```
+
+更干净，对吧？ 然而，正如我们前面所说的，这个实现不会真正工作，因为if的两个分支总是必须被编译，不管obj是否有toString方法。 有几个可能的选项，但最古典的是使用`std::enable_if`：
+
+```C++
+template <typename T>
+auto optionalToString(T const& obj)
+  -> std::enable_if_t<decltype(has_toString(obj))::value, std::string>
+{ return obj.toString(); }
+template <typename T>
+auto optionalToString(T const& obj)
+  -> std::enable_if_t<decltype(!has_toString(obj))::value, std::string>
+{ return "toString not defined"; }
+```
+
+**注意**
+
+* 我们使用这样一个事实，`has_toString`返回一个IntegralConstant来写`decltype(...)::value`，这是一个常量表达式。 出于某种原因，has_toString（obj）不被认为是一个常量表达式，即使我认为它应该是一个，因为我们从未读过obj（参见[高级constexpr](#高级constexpr)）。
+
+虽然这个实现是完全有效的，但它仍然相当繁琐，因为它需要编写两个不同的函数，并通过使用`std::enable_if`显式地绕过了SFINAE的圈子。 然而，你可能还记得编译时分支那一节，Hana提供了一个`if_`函数，可以用来模拟`static_if`的功能。 这里我们用`hana::if_`来编写optionalToString：
+
+```C++
+template <typename T>
+std::string optionalToString(T const& obj) {
+  return hana::if_(has_toString(obj),
+    [](auto& x) { return x.toString(); },
+    [](auto& x) { return "toString not defined"; }
+  )(obj);
+}
+```
+
+现在，前面的示例仅涉及检查非静态成员函数的存在的特定情况。 然而，`is_valid`可以用于检测几乎任何种类的表达式的有效性。 为了完整起见，我们现在提供有效性检查的常见用例列表以及如何使用`is_valid`实现它们。
 
 ### 非静态数值
 
+我们要看的第一个惯用法是检查非静态成员的存在。 我们可以使用与上一个示例类似的方式：
+
+```C++
+auto has_member = hana::is_valid([](auto&& x) -> decltype((void)x.member) { });
+struct Foo { int member[4]; };
+struct Bar { };
+BOOST_HANA_CONSTANT_CHECK(has_member(Foo{}));
+BOOST_HANA_CONSTANT_CHECK(!has_member(Bar{}));
+```
+
+注意我们为何将`x.member`的结果转换为`void`？ 这是为了确保我们的检测也适用于不能从函数返回的类型，如数组类型。 此外，重要的是使用引用作为我们的通用lambda的参数，否则将需要`x`是[复制构造](http://en.cppreference.com/w/cpp/concept/CopyConstructible)的，这不是我们试图检查的。 这种方法很简单，当对象可用时最方便。 然而，当检查器旨在不使用对象时，以下替代实现可以更好地适合：
+
+```C++
+auto has_member = hana::is_valid([](auto t) -> decltype(
+  (void)hana::traits::declval(t).member
+) { });
+struct Foo { int member[4]; };
+struct Bar { };
+BOOST_HANA_CONSTANT_CHECK(has_member(hana::type_c<Foo>));
+BOOST_HANA_CONSTANT_CHECK(!has_member(hana::type_c<Bar>));
+```
+
+这个有效性检查器不同于我们之前看到的，因为通用的lambda不再期望一个通常的对象了; 它现在期待一个类型（它是一个对象，但仍然代表一个类型）。 然后，我们使用来自`<boost/hana/traits.hpp>`头的`hana::traits::declval`提升的元函数来创建由`t`表示的类型的右值，然后我们可以使用它来检查非静态成员。 最后，不是将实际对象传递给`has_member`（像Foo {}或Bar {}），我们现在传递一个`type_c<...>`。 这个实现是没有对象在周围时的理想选择。
+
 ### 静态数值
+
+检查静态成员是很容易的，并且Hana提供完整性支持：
+
+```C++
+auto has_member = hana::is_valid([](auto t) -> decltype(
+  (void)decltype(t)::type::member
+) { });
+struct Foo { static int member[4]; };
+struct Bar { };
+BOOST_HANA_CONSTANT_CHECK(has_member(hana::type_c<Foo>));
+BOOST_HANA_CONSTANT_CHECK(!has_member(hana::type_c<Bar>));
+```
+
+再次，我们期望一个类型被传递给检查器。 在通用lambda中，我们使用`decltype'(t)::type`来获取由`t`对象表示的实际C++类型，如[类型计算](#类型计算)节中所述。 然后，我们获取该类型中的静态成员并将其转换为`void`，这与非静态成员的原因相同。
 
 ### 嵌套类型名
 
+检查嵌套类型名称并不难，但会稍微复杂一点：
+
+```C++
+auto has_member = hana::is_valid([](auto t) -> hana::type<
+  typename decltype(t)::type::member
+//^^^^^^^^ needed because of the dependent context
+> { });
+struct Foo { struct member; /* not defined! */ };
+struct Bar { };
+BOOST_HANA_CONSTANT_CHECK(has_member(hana::type_c<Foo>));
+BOOST_HANA_CONSTANT_CHECK(!has_member(hana::type_c<Bar>));
+```
+
+可能想知道为什么我们使用 `->hana::type<typename-expression>`而不是简单 `->typename-expression`。 同样，原因是我们要支持不能从函数返回的类型，如数组类型或不完全类型。
+
 ### 嵌套模板
 
+检查嵌套模板名称类似于检查嵌套类型名称，除了在通用lambda中使用`template_<...>`变量模板而不是`type<...>`:
+
+```C++
+auto has_member = hana::is_valid([](auto t) -> decltype(hana::template_<
+  decltype(t)::type::template member
+  //                 ^^^^^^^^ needed because of the dependent context
+>) { });
+struct Foo { template <typename ...> struct member; };
+struct Bar { };
+BOOST_HANA_CONSTANT_CHECK(has_member(hana::type_c<Foo>));
+BOOST_HANA_CONSTANT_CHECK(!has_member(hana::type_c<Bar>));
+```
 ## SFINAE 控制
+
+只有表达式形式良好时才做某事是C++中非常常见的模式。 实际上，optionalToString函数只是以下模式的一个实例，这是非常一般的：
+
+```C++
+template <typename T>
+auto f(T x) {
+  if (some expression involving x is well-formed)
+    return something involving x;
+  else
+    return something else;
+}
+```
+
+为了封装这个模式，Hana提供了`sfinae`函数，它允许执行一个表达式，但是只有当它是良好的形式：
+
+```C++
+auto maybe_add = hana::sfinae([](auto x, auto y) -> decltype(x + y) {
+  return x + y;
+});
+maybe_add(1, 2); // hana::just(3)
+std::vector<int> v;
+maybe_add(v, "foobar"); // hana::nothing
+```
+
+这里，我们创建一个`maybe_add`函数，它只是一个用Hana的`sfina`e函数包装的通用lambda。 `maybe_add`是一个函数，它接受两个输入，返回`juse`包装的普通lambda的结果，如果调用是良好的，`just(...)`什么都不属于一个类型的容器，称为`hana::optional`，这本质上是一个编译时`std::optional`。 总而言之，`maybe_add`等同于以下函数返回一个`std::optional`，除了检查是在编译时完成的：
+
+```C++
+auto maybe_add = [](auto x, auto y) {
+  if (x + y is well formed)
+    return std::optional<decltype(x + y)>{x + y};
+  else
+    return std::optional<???>{};
+};
+```
+
+事实证明，我们可以利用`sfina`e和optional`来实现optionalToString函数，如下所示：
+
+```C++
+template <typename T>
+std::string optionalToString(T const& obj) {
+  auto maybe_toString = hana::sfinae([](auto&& x) -> decltype(x.toString()) {
+    return x.toString();
+  });
+  return maybe_toString(obj).value_or("toString not defined");
+}
+```
+
+首先，我们使用`sfina`e函数将`toString`包装。 因此，`maybe_toString`是一个函数，如果形式良好，则返回`（x.toString（））`，否则不返回。 其次，我们使用`.value_or（）`函数从容器中提取可选值。 如果可选值为空，`.value_or（）`返回给定的默认值; 否则，它返回的值在`just（here x.toString（））`。 这种将SFINAE看作可能失败的计算的特殊情况的方式是非常干净和强大的，特别是因为sfinae'd函数可以通过`hana::optional` Monad组合，这留给参考文档。
 
 ## 内省用户定义类型
 
+你曾经想要遍历用户定义类型的成员吗？ 本节的目的是向您展示如何使用Hana轻松地做到这一点。 为了允许使用用户定义的类型，Hana定义了Struct概念。 一旦用户定义的类型是该概念的模型，可以遍历该类型的对象的成员并查询其他有用的信息。 要将用户定义的类型转换为Struct，可以使用几个选项。 首先，您可以使用`BOOST_HANA_DEFINE_STRUCT`宏定义用户定义类型的成员：
+
+```C++
+struct Person {
+  BOOST_HANA_DEFINE_STRUCT(Person,
+    (std::string, name),
+    (int, age)
+  );
+};
+```
+
+此宏使用给定的类型定义两个成员（名称和年龄）。 然后，它在Person :: hana嵌套结构中定义了一些样板，这是使Person成为Struct概念的模型所必需的。 没有定义构造函数（因此保留POD属性），成员的定义顺序与它们在这里出现的顺序相同，宏可以与模板结构一起使用，也可以在任何范围使用。 另请注意，您可以在使用宏之前或之后向Person类型中添加更多成员。 但是，只有在使用宏定义的成员在自动检查Person类型时才会被选中。 足够简单？ 现在，可以通过编程方式访问Person：
+
+```C++
+Person john{"John", 30};
+hana::for_each(john, [](auto pair) {
+  std::cout << hana::to<char const*>(hana::first(pair)) << ": "
+            << hana::second(pair) << std::endl;
+});
+// name: John
+// age: 30
+```
+
+对结构体的迭代完成，好像结构体是一对对的序列，其中一对中的第一个元素是与成员相关的键，第二个元素是成员本身。 当通过BOOST_HANA_DEFINE_STRUCT宏定义一个Struct时，与任何成员关联的键是一个编译时hana :: string，表示该成员的名称。 这就是为什么与for_each一起使用的函数使用单个参数对，然后使用第一和第二个函数来访问对的子部分。 另外，注意如何使用<char const *>函数对成员的名称？ 这将编译时字符串转换为constexpr char const *，所以它可以couted。 因为总是使用第一和第二来获取对的子部分可能是恼人的，我们还可以使用fuse函数来包装我们的lambda，并使它成为一个二进制lambda：
+
+```C++
+hana::for_each(john, hana::fuse([](auto name, auto member) {
+  std::cout << hana::to<char const*>(name) << ": " << member << std::endl;
+}));
+```
+
+现在，它看起来更清洁。 正如我们刚才提到的，结构体被看作是一种用于迭代目的的一对序列。 实际上，一个Struct甚至可以像关联数据结构一样被搜索，其键是成员的名字，其值是成员本身：
+
+```C++
+std::string name = hana::at_key(john, "name"_s);
+BOOST_HANA_RUNTIME_CHECK(name == "John");
+int age = hana::at_key(john, "age"_s);
+BOOST_HANA_RUNTIME_CHECK(age == 30);
+```
+
+**注意**
+* _s用户定义的文本创建一个编译时hana :: string。 它位于boost :: hana :: literals命名空间中。 请注意，它不是标准的一部分，但它是由Clang和GCC支持。 如果要保持100％的标准，可以使用BOOST_HANA_STRING宏。
+
+Struct和hana :: map之间的主要区别在于可以修改映射（可以添加和删除键），而Struct是不可变的。 但是，您可以轻松地将一个Struct转换为与<map_tag>的hana :: map，然后您可以以更灵活的方式操作它。
+
+```C++
+auto map = hana::insert(hana::to<hana::map_tag>(john), hana::make_pair("last name"_s, "Doe"s));
+std::string name = map["name"_s];
+BOOST_HANA_RUNTIME_CHECK(name == "John");
+std::string last_name = map["last name"_s];
+BOOST_HANA_RUNTIME_CHECK(last_name == "Doe");
+int age = map["age"_s];
+BOOST_HANA_RUNTIME_CHECK(age == 30);
+```
+
+使用BOOST_HANA_DEFINE_STRUCT宏来修改结构很方便，但有时候不能修改需要修改的类型。 在这些情况下，BOOST_HANA_ADAPT_STRUCT宏可用于以自组织方式调整结构：
+
+```C++
+namespace not_my_namespace {
+  struct Person {
+    std::string name;
+    int age;
+  };
+}
+BOOST_HANA_ADAPT_STRUCT(not_my_namespace::Person, name, age);
+```
+
+**注意**
+* 必须在全局范围使用BOOST_HANA_ADAPT_STRUCT宏。
+
+该效果与BOOST_HANA_DEFINE_STRUCT宏完全相同，除非您不需要修改要修改的类型，这有时是有用的。 最后，还可以使用BOOST_HANA_ADAPT_ADT宏定义自定义访问器：
+
+``` C++
+namespace also_not_my_namespace {
+  struct Person {
+    std::string get_name();
+    int get_age();
+  };
+}
+BOOST_HANA_ADAPT_ADT(also_not_my_namespace::Person,
+  (name, [](auto const& p) { return p.get_name(); }),
+  (age, [](auto const& p) { return p.get_age(); })
+);
+```
+
+这样，用于访问Struct的成员的名称将是指定的名称，并且在检索该成员时，将在Struct上调用相关的函数。 在我们继续使用这些内省功能的一个具体例子之前，还应该提到的是，结构可以适应而不使用宏。 这个用于定义Structs的高级接口可以用于例如指定不是编译时字符串的键。 高级接口在Struct概念的文档中描述。
+
 ## 示例：生成JSON
+
+现在让我们继续使用我们刚刚提供的用于以JSON格式打印自定义对象的内省功能的具体示例。 我们的最终目标是拥有这样的东西：
+
+```C++
+struct Car {
+  BOOST_HANA_DEFINE_STRUCT(Car,
+    (std::string, brand),
+    (std::string, model)
+  );
+};
+struct Person {
+  BOOST_HANA_DEFINE_STRUCT(Person,
+    (std::string, name),
+    (std::string, last_name),
+    (int, age)
+  );
+};
+Car bmw{"BMW", "Z3"}, audi{"Audi", "A4"};
+Person john{"John", "Doe", 30};
+auto tuple = hana::make_tuple(john, audi, bmw);
+std::cout << to_json(tuple) << std::endl;
+```
+
+输出，通过一个JSON漂亮打印机后，应该看起来像:
+
+```JSON
+    1 [
+    2   {
+    3     "name": "John",
+    4     "last_name": "Doe",
+    5     "age": 30
+    6   },
+    7   {
+    8     "brand": "Audi",
+    9     "model": "A4"
+   10   },
+   11   {
+   12     "brand": "BMW",
+   13     "model": "Z3"
+   14   }
+   15 ]
+```
+
+首先，让我们定义一些效用函数，使字符串操作更容易：
+
+```C++
+template <typename Xs>
+std::string join(Xs&& xs, std::string sep) {
+  return hana::fold(hana::intersperse(std::forward<Xs>(xs), sep), "", hana::_ + hana::_);
+}
+std::string quote(std::string s) { return "\"" + s + "\""; }
+template <typename T>
+auto to_json(T const& x) -> decltype(std::to_string(x)) {
+  return std::to_string(x);
+}
+std::string to_json(char c) { return quote({c}); }
+std::string to_json(std::string s) { return quote(s); }
+```
+
+引号和to_json重载是很自然的。 然而，连接函数可能需要一点解释。 基本上，散布函数采用序列和分隔符，并且在原始序列的每对元素之间返回具有分隔符的新序列。 换句话说，我们采用形式[x1，...，xn]的序列，并将其转换为形式[x1，sep，x2，sep，...，sep，xn]的序列。 最后，我们使用_ + _函数对象折叠结果序列，这等价于std :: plus <> {}。 因为我们的序列包含std :: strings（我们假设它），这具有将序列的所有字符串连接成一个大字符串的效果。 现在，让我们定义如何打印一个序列：
+
+```C++
+template <typename Xs>
+  std::enable_if_t<hana::Sequence<Xs>::value,
+std::string> to_json(Xs const& xs) {
+  auto json = hana::transform(xs, [](auto const& x) {
+    return to_json(x);
+  });
+  return "[" + join(std::move(json), ", ") + "]";
+}
+```
+
+首先，我们使用transform算法将我们的对象序列转换为JSON格式的std :: strings序列。 然后，我们用逗号连接该序列，并用[]将其括起来表示JSON符号中的序列。 足够简单？ 现在让我们来看看如何打印用户定义的类型：
+
+```C++
+template <typename T>
+  std::enable_if_t<hana::Struct<T>::value,
+std::string> to_json(T const& x) {
+  auto json = hana::transform(hana::keys(x), [&](auto name) {
+    auto const& member = hana::at_key(x, name);
+    return quote(hana::to<char const*>(name)) + " : " + to_json(member);
+  });
+  return "{" + join(std::move(json), ", ") + "}";
+}
+```
+
+这里，我们使用keys方法来检索包含用户定义类型的成员的名称的元组。 然后，我们将该序列转换为“name”序列：成员字符串，然后我们连接并用{}括起来，这用于表示JSON符号中的对象。 就是这样！
 
 # 容器的一般性操作
 
+本节解释了关于Hana容器的几个重要概念：如何创建它们，元素的生命周期和其他问题。
+
 ## 创建容器
+
+虽然在C ++中创建对象的通常方式是使用它的构造函数，异构编程使事情更复杂。 实际上，在大多数情况下，人们对（或甚至不知道）要创建的异构容器的实际类型不感兴趣。 在其他时间，可以明确地写出该类型，但是这样做是多余的或繁琐的。 因此，Hana使用从std :: make_tuple借用的不同方法来创建新容器。 很像一个可以用std :: make_tuple创建一个std :: tuple，一个hana :: tuple可以用hana :: make_tuple创建。 然而，更一般地，Hana中的容器可以用make函数创建：
+
+```C++
+auto xs = hana::make<hana::tuple_tag>(1, 2.2, 'a', "bcde"s);
+```
+
+事实上，make_tuple只是make <tuple_tag>的一个快捷方式，所以当你离开Hana的命名空间时，你不必键入boost :: hana :: make <boost :: hana :: tuple_tag>。 简单地说，make <...>是在库周围使用的，以创建不同类型的对象，从而概括了std :: make_xxx系列函数。 例如，可以使用make <range_tag>创建一个hana :: range的编译时整数：
+
+```C++
+constexpr auto r = hana::make<hana::range_tag>(hana::int_c<3>, hana::int_c<10>);
+static_assert(r == hana::make_range(hana::int_c<3>, hana::int_c<10>), "");
+```
+
+带有尾部_tag的这些类型是表示异类容器族（hana :: tuple，hana :: map等）的虚拟类型。 标签记录在Hana核心部分。
+
+为方便起见，每当Hana的组件提供make <xxx_tag>函数时，它还提供make_xxx快捷方式以减少打字。 此外，在该示例中可以提出的一个有趣的点是r是constexpr的事实。 通常，每当一个容器只用常量表达式初始化（这是r的情况），该容器可以被标记为constexpr。
+
+到目前为止，我们只创建了带有make_xxx系列函数的容器。 然而，一些容器确实提供构造函数作为其接口的一部分。 例如，可以创建一个hana :: tuple，就像创建一个std :: tuple：
+
+```C++
+hana::tuple<int, double, char, std::string> xs{1, 2.2, 'a', "bcde"s};
+```
+
+当构造函数（或任何成员函数真的）是公共接口的一部分时，它们将在每个容器的基础上进行记录。 然而，在一般情况下，不应当理所当然的是，可以构建为上面构造的元组的容器。 例如，尝试创建一个hana :: range的方式将无法工作：
+
+```C++
+hana::range<???> xs{hana::int_c<3>, hana::int_c<10>};
+```
+
+事实上，我们甚至不能在这种情况下指定我们想要创建的对象的类型，因为hana :: range的精确类型是实现定义的，这使我们进入下一节。
 
 ## 容器类型
 
+本节的目的是澄清从Hana的容器的类型可以预期什么。 事实上，到目前为止，我们总是让编译器通过使用make_xxx系列函数和auto来推导出容器的实际类型。 但一般来说，我们可以说一个容器的类型？
+
+```C++
+auto xs = hana::make_tuple(1, '2', "345");
+auto ints = hana::make_range(hana::int_c<0>, hana::int_c<100>);
+// what can we say about the types of `xs` and `ints`?
+```
+
+答案是，它取决于。 一些容器具有明确定义的类型，而其他容器没有指定它们的表示。 在本示例中，由make_tuple返回的对象的类型是明确定义的，而由make_range返回的类型是实现定义的：
+
+```C++
+hana::tuple<int, char, char const*> xs = hana::make_tuple(1, '2', "345");
+auto ints = hana::make_range(hana::int_c<0>, hana::int_c<100>);
+// can't specify the type of ints, however
+```
+
+这是在每个容器的基础上记录; 当容器具有实现定义的表示时，在容器的描述中包括可以从该表示中精确地解释可以期望什么的注释。 离开未指定容器的表示有几个原因; 他们在理由中解释。 当容器的表示是实现定义的时，必须小心不要对它做任何假设，除非这些假设在容器的文档中被明确允许。
+
+### 容器类型重载
+
+虽然有必要，留下一些未指定的容器类型使得一些事情很难实现，像异构容器上的重载函数：
+
+```C++
+template <typename T>
+void f(std::vector<T> xs) {
+  // ...
+}
+template <typename ...???>
+void f(unspecified-range-type<???> r) {
+  // ...
+}
+```
+
+is_a实用程序提供了这个原因（和其他）。 is_a允许使用其标签检查类型是否是精确类型的容器，而不考虑容器的实际类型。 例如，上面的例子可以重写为
+
+```C++
+template <typename T>
+void f(std::vector<T> xs) {
+  // ...
+}
+template <typename R, typename = std::enable_if_t<hana::is_a<hana::range_tag, R>()>>
+void f(R r) {
+  // ...
+}
+```
+
+这样，只有当R是一个标签为range_tag的类型时，f的第二个重载才会匹配，而不管该范围的确切表示。 当然，is_a可以用于任何类型的容器：tuple，map，set等等。
+
 ## 容器元素
+
+Hana容器拥有自己的元素。 创建容器时，它会创建用于初始化它的元素的副本，并将它们存储在容器中。 当然，通过使用移动语义来避免不必要的副本。 由于拥有语义，容器内的对象的生命周期与容器的生命周期相同。
+
+```C++
+std::string hello = "Hello";
+std::vector<char> world = {'W', 'o', 'r', 'l', 'd'};
+// hello is copied, world is moved-in
+auto xs = hana::make_tuple(hello, std::move(world));
+// s is a reference to the copy of hello inside xs.
+// It becomes a dangling reference as soon as xs is destroyed.
+std::string& s = xs[0_c];
+```
+与标准库中的容器非常相似，Hana中的容器期望它们的元素是对象。 因此，引用可能不会存储在其中。 当引用必须存储在容器中时，应该使用std :: reference_wrapper：
+
+```C++
+std::vector<int> ints = { /* huge vector of ints */ };
+std::vector<std::string> strings = { /* huge vector of strings */ };
+auto map = hana::make_map(
+  hana::make_pair(hana::type_c<int>, std::ref(ints)),
+  hana::make_pair(hana::type_c<std::string>, std::ref(strings))
+);
+auto& v = map[hana::type_c<int>].get();
+BOOST_HANA_RUNTIME_CHECK(&v == &ints);
+```
 
 # 算法的一般性操作
 
+很像前面的部分介绍了异构容器的一般但重要的概念，本节介绍异构算法的一般概念。
+
 ## 传值
+
+Hana中的算法总是返回一个包含结果的新容器。 这允许通过简单地使用第一个的结果作为第二个的输入来容易地链接算法。 例如，要对元组的每个元素应用函数，然后反转结果，只需要连接反向和变换算法：
+
+```C++
+auto to_str = [](auto const& x) {
+  std::stringstream ss;
+  ss << x;
+  return ss.str();
+};
+auto xs = hana::make_tuple(1, 2.2, 'a', "bcde");
+BOOST_HANA_RUNTIME_CHECK(
+  hana::reverse(hana::transform(xs, to_str)) == hana::make_tuple("bcde", "a", "2.2", "1")
+);
+```
+
+这不同于标准库的算法，其中必须向基础序列提供迭代器。 由于在理论中记录的原因，基于迭代器的设计被考虑，但很快被驳回，有利于可组合和有效的抽象更适合异构编程的特定上下文。
+
+也可以认为从算法返回拥有其元素的完整序列将导致大量不期望的副本。 例如，当使用reverse和transform时，可以认为在调用transform之后产生一个中间副本：
+
+```C++
+hana::reverse(
+  hana::transform(xs, to_str) // <-- copy into reverse(...) here?
+);
+```
+
+为了确保这不会发生，Hana使用完美的转发和移动语义，所以它可以提供几乎最佳的运行时性能。 因此，不是做一个副本，在反向和转换之间发生移动：
+
+```C++
+hana::reverse(
+  hana::transform(xs, to_str) // <-- nope, move from the temporary instead!
+);
+```
+
+最终，目标是使用Hana编写的代码应该相当于聪明的手写代码，除了它应该是愉快的写。 性能注意事项在各自的章节中进行深入解释。
 
 ## (非)惰性
 
+Hana的算法不懒。 当一个算法被调用时，它完成它的工作，并返回一个包含结果，结束故事的新序列。 例如，在大序列上调用排列算法是一个愚蠢的想法，因为Hana实际上将计算所有的排列：
+
+```C++
+auto perms = hana::permutations(hana::make_tuple(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
+// perms has 3 628 800 elements, and your compiler just crashed
+```
+为了比较，Boost.Fusion中的算法返回视图，它通过引用保存原始序列，并且在访问序列的元素时根据需要应用算法。 这会导致微妙的生命周期问题，例如有一个视图指的是被破坏的序列。 Hana的设计假设大多数时候，我们想访问序列中的所有或几乎所有的元素，因此性能不是一个有利于懒惰的大争论。
+
 ## 生成什么？
+
+Hana中的算法对于它们被扩展到的运行时代码是有点特别的。 这个小节的目标不是要准确地解释什么代码生成，这取决于编译器反正，但给一个感觉的东西。 基本上，Hana算法就像一个等价的经典算法的展开版本。 实际上，由于处理的序列的边界在编译时是已知的，所以我们可以在该序列上展开循环是有意义的。 例如，让我们考虑for_each算法：
+
+```C++
+auto xs = hana::make_tuple(0, 1, 2, 3);
+hana::for_each(xs, f);
+```
+
+如果xs是一个运行时序列而不是一个元组，它的长度只会在运行时被知道，上面的代码必须实现为一个循环：
+
+```C++
+for (int i = 0; i < xs.size(); ++i) {
+  f(xs[i]);
+}
+```
+
+然而，在我们的例子中，序列的长度在编译时是已知的，因此我们不必在每次迭代时检查索引。 因此，我们可以写：
+
+```C++
+f(xs[0_c]);
+f(xs[1_c]);
+f(xs[2_c]);
+f(xs[3_c]);
+```
+
+这里的主要区别是在每个步骤都不进行绑定检查和索引增量，因为没有索引; 循环被有效地展开。 在一些情况下，出于性能原因，这可能是期望的。 在其他情况下，这可能会对性能造成不利影响，因为它会导致代码大小增加。 和往常一样，性能是一个棘手的问题，是否你真的想要循环展开发生应该逐案处理。 作为经验法则，处理容器的所有（或子集）元素的算法被展开。 事实上，如果你考虑它，这个展开是异构序列的唯一途径，因为序列的不同元素可能有不同的类型。 正如你可能已经注意到的，我们不使用正常的索引到元组，而是编译时索引，它不能由正常的for循环生成。 换句话说，以下是没有意义的：
+
+```C++
+for (??? i = 0_c; i < xs.size(); ++i) {
+  f(xs[i]);
+}
+```
 
 ## 副作用和纯度
 
+默认情况下，Hana假定函数是纯的。 纯函数是根本没有副作用的函数。 换句话说，它是一个对程序的影响仅由其返回值决定的函数。 特别地，这样的函数可以不访问比函数的单次调用更长的任何状态。 这些函数具有非常好的属性，如对它们进行数学推理的能力，重新排序或甚至消除调用等等。 除非另有规定，与Hana一起使用的所有函数（即在高阶算法中使用的函数）应该是纯的。 特别地，传递给高阶算法的函数不能保证被称为任何特定次数。 此外，执行顺序通常没有指定，因此不应该被认为是理所当然的。 如果这种缺乏对函数调用的保证看起来很疯狂，请考虑以下any_of算法的使用：
+
+```C++
+auto r = hana::any_of(hana::make_tuple("hello"s, 1.2, 3), [](auto x) {
+  return std::is_integral<decltype(x)>{};
+});
+BOOST_HANA_CONSTANT_CHECK(r);
+```
+
+**注意**
+* 为了这个工作，必须包括包含在<boost/hana/ext/std/integral_constant.hpp>中的std :: integr_constant的外部适配器。
+  根据前面的展开部分，这个算法应该扩展到如下：
+
+  ```C++
+  auto xs = hana::make_tuple("hello"s, 1.2, 3);
+  auto pred = [](auto x) { return std::is_integral<decltype(x)>{}; };
+  auto r = hana::bool_c<
+    pred(xs[0_c]) ? true :
+    pred(xs[1_c]) ? true :
+    pred(xs[2_c]) ? true :
+    false
+  >;
+  BOOST_HANA_CONSTANT_CHECK(r);
+  ```
+
+当然，上面的代码不能按原样工作，因为我们在需要是一个常量表达式的东西中调用pred，但是pred是一个lambda（并且lambdas不能在常量表达式中调用）。 然而，这些对象是否具有整数类型在编译时是清楚地知道的，因此我们希望计算答案只涉及编译时计算。 事实上，这正是Hana做的，上述算法被扩展成类似：
+
+```C++
+auto xs = hana::make_tuple("hello"s, 1.2, 3);
+auto pred = [](auto x) { return std::is_integral<decltype(x)>{}; };
+auto r = hana::bool_c<
+  decltype(pred(xs[0_c]))::value ? true :
+  decltype(pred(xs[1_c]))::value ? true :
+  decltype(pred(xs[2_c]))::value ? true :
+  false
+>;
+BOOST_HANA_CONSTANT_CHECK(r);
+```
+
+**注意**
+* 正如你将能够从交叉相位计算的下一节中推断的，any_of的实现实际上必须比这更通用。 然而，这个谎言对孩子是完美的教育目的。
+
+  ```C++
+   hana::transform(hana::make_tuple(x1, ..., xn), f) == hana::make_tuple(f(x1), ..., f(xn))
+  ```
+因为make_tuple是一个函数，并且因为函数的参数的求值顺序是未指定的，所以在元组的每个元素上调用f的顺序也是未指定的。 如果一个坚持纯函数，一切工作正常，所得到的代码通常更容易理解。 然而，一些例外的算法，如for_each，预期不纯的函数，并且它们保证了求值的顺序。 的确，一个只使用纯函数的for_each算法几乎没有用。 当一个算法可以接受一个不纯的函数或保证某种顺序的评价，该算法的文档将明确提及它。 但是，默认情况下，不能保证是理所当然的。
+
 ## 正交算法
+
+本节介绍交叉相位计算和算法的概念。 事实上，我们已经在快速启动中使用了交叉相位算法，例如使用滤波器，但是我们没有准确解释当时发生了什么。 但在我们介绍交叉相位算法之前，让我们定义我们的意思是交叉相位。 这里所指的阶段是程序的编译和执行。 在大多数静态类型语言中的C ++中，编译时和运行时有明显的区别; 这被称为相位差。 当我们谈到交叉相位计算时，我们是指以某种方式在这些阶段上执行的计算; 即在编译时部分执行并在运行时部分执行。
+
+就像我们在前面的例子中看到的，一些函数能够返回在编译时可以使用的东西，即使它们是在运行时值上调用的。 例如，让我们考虑应用于非constexpr容器的长度函数：
+
+```C++
+struct Fish { std::string name; };
+struct Cat  { std::string name; };
+struct Dog  { std::string name; };
+auto animals = hana::make_tuple(Fish{"Nemo"}, Cat{"Garfield"}, Dog{"Snoopy"});
+//   ^^^^^^^ not a compile-time value
+BOOST_HANA_CONSTANT_CHECK(hana::length(animals) == hana::size_c<3>);
+//                        ^^^^^^^^^^^^^^^^^
+```
+
+显然，元组不能被constexpr，因为它包含运行时std ::字符串。 尽管它不是在常量表达式上调用，但是length返回可以在编译时使用的东西。 如果你想到的话，元组的大小在编译时是已知的，而不管它的内容，因此，这些信息只有在编译时可供我们使用才有意义。 如果这似乎令人惊讶，考虑std :: tuple和std :: tuple_size：
+
+```C++
+std::tuple<int, char, std::string> xs{1, '2', std::string{"345"}};
+static_assert(std::tuple_size<decltype(xs)>::value == 3u, "");
+```
+
+由于元组的大小是以其类型编码的，所以无论元组是否为constexpr，它在编译时都是可用的。 在Hana中，这是通过返回一个IntegralConstant的长度来实现的。 由于IntegralConstant的值是在其类型中编码的，所以长度的结果包含在它返回的对象的类型中，因此长度在编译时是已知的。 因为长度从运行时值（容器）到编译时值（IntegralConstant），所以长度是一个交叉相位算法的一个简单例子（无关紧要，因为它并不真正操作元组）。 另一个非常类似于length的算法是is_empty算法，它返回容器是否为空：
+
+```C++
+BOOST_HANA_CONSTANT_CHECK(!hana::is_empty(animals));
+//                         ^^^^^^^^^^^^^^^^^^^^^^^ assertion done at compile-time
+```
+
+更一般地，任何采用其值在运行时已知的容器但查询在编译时可以知道的容器的任何算法应该能够返回IntegralConstant或另一个类似的编译时值。 让我们通过考虑any_of算法使事情稍微复杂一些，我们已经在上一节中遇到过：
+
+```C++
+bool any_garfield = hana::any_of(animals, [](auto animal) {
+  return animal.name == "Garfield"s;
+});
+BOOST_HANA_RUNTIME_CHECK(any_garfield);
+```
+
+在这个例子中，在编译时不能知道结果，因为谓词返回一个bool，它是比较两个std ::字符串的结果。 由于std ::字符串不能在编译时进行比较，所以谓词必须在运行时操作，并且算法的整体结果只能在运行时才知道。 但是，让我们使用any_of替换下面的谓词：
+
+```C++
+auto any_cat = hana::any_of(animals, [](auto x) {
+  return std::is_same<decltype(x), Cat>{};
+});
+BOOST_HANA_CONSTANT_CHECK(any_cat);
+```
+
+**注意**
+* 为了这个工作，必须包括包含在<boost/hana/ext/std/integral_constant.hpp>中的std :: integr_constant的外部适配器。
+
+首先，由于谓词仅查询关于元组的每个元素的类型的信息，所以清楚的是，其结果可以在编译时知道。 由于元组中元素的数量在编译时也是已知的，所以算法的总体结果理论上可以在编译时知道。 更确切地说，发生的是谓词返回一个初始化std :: is_same <...>的值，它继承自std :: integral_constant。 Hana识别这些对象，并且以这样的方式编写算法，使得它保留谓词的结果的编译时间。 最后，any_of返回一个IntegralConstant保存算法的结果，我们使用编译器的类型扣除以一种聪明的方式，使它看起来容易。 因此，它相当于写（但是你需要已经知道算法的结果！）：
+
+```C++
+hana::integral_constant<bool, true> any_cat = hana::any_of(animals, [](auto x) {
+  return std::is_same<decltype(x), Cat>{};
+});
+BOOST_HANA_CONSTANT_CHECK(any_cat);
+```
+
+好的，所以一些算法能够返回编译时值，当他们的输入满足编译时的一些约束。然而，其他算法更具限制性，并且它们需要它们的输入以满足关于编译时间的一些约束，没有它们，它们根本不能操作。一个示例是filter，它接受一个序列和一个谓词，并返回一个只包含那些满足该谓词的元素的新序列。过滤器需要谓词返回一个IntegralConstant。虽然这个要求可能看起来很严格，但如果你考虑这个要求真的有意义。实际上，由于我们从异构序列中去除一些元素，所以得到的序列的类型取决于谓词的结果。因此，谓词的结果必须在编译时知道，编译器才能为返回的序列分配类型。例如，考虑当我们尝试过滤异构序列时发生的情况如下：
+
+```C++
+auto animals = hana::make_tuple(Fish{"Nemo"}, Cat{"Garfield"}, Dog{"Snoopy"});
+auto no_garfield = hana::filter(animals, [](auto animal) {
+  return animal.name != "Garfield"s;
+});
+```
+
+显然，我们知道谓词只会在第二个元素上返回false，因此结果应该是[Fish，Dog]元组。 然而，编译器没有办法知道这一点，因为谓词的结果是运行时计算的结果，这发生在编译器完成其工作之后。 因此，编译器没有足够的信息来确定算法的返回类型。 但是，我们可以使用在编译时获得结果的任何谓词过滤相同的序列：
+
+```C++
+auto mammals = hana::filter(animals, [](auto animal) {
+  return hana::type_c<decltype(animal)> != hana::type_c<Fish>;
+});
+```
+
+由于谓词返回一个IntegralConstant，因此我们知道在编译时将保持异构序列的哪些元素。 因此，编译器能够找出算法的返回类型。 其他算法，如分区和排序工作类似; 特殊算法要求总是记录在案，只是在使用之前阅读算法的参考文档，以避免意外。
+
+这是关于算法的部分的结束。 虽然这构成了算法中相位相互作用的相当完整的解释，但通过阅读关于constexpr的高级部分和Constant和IntegralConstant的参考，可以获得更深入的理解。
+
+**警告**
+* Hana的算法是constexpr函数对象，而不是模板函数。 这允许将它们传递到更高阶的算法，这是非常有用的。 然而，由于那些函数对象被定义在头文件中的命名空间范围，这使得每个翻译单元看到不同的算法对象。 因此，不保证算法函数对象的地址在翻译单元之间是唯一的，如果依赖于这样的地址，这可能导致ODR违反。 所以，简而言之，不要依赖Hana提供的任何全局对象的地址的唯一性，这在一般情况下没有意义，因为这样的对象是constexpr。 有关详细信息，请参阅问题＃76。
+
+# 性能注意事项
+
+C ++程序员喜欢性能，所以这里是一个专门的部分。 由于Hana在运行时和编译时计算之间处于前沿，我们不仅对运行时性能感兴趣，而且对编译时性能感兴趣。 由于这两个主题是相当不相交的，我们在下面分别对待。
+
+**注意**
+* 当我们推送到存储库时，本节中提供的基准会自动更新。 如果您发现不能承受此处声明的结果，请打开一个GitHub问题; 它可能是一个性能回归。
+
+**警告**
+* 在写这篇文章的时候，并不是所有的Hana容器都经过了优化。 实施Hana是一个足够大的挑战，容器最初写成天真的，现在正在严格优化的过程。 特别是，关联容器（hana :: map和hana :: set）由于其朴素的实现而具有相当差的编译时行为，并且它们的运行时行为在某些情况下也似乎是有问题的。 改进这种情况是在TODO列表中。
+
+## 编译期性能
+
+C ++元编程带来了它的可怕的东西的份额。 与它相关的最恼人和众所周知的问题之一是不可分的编译时间。 哈纳声称比前任更有编译时效率; 这是一个大胆的声明，我们现在将尝试回复它。 当然，哈娜不能做奇迹; 元编程是C ++模板系统的副产品，编译器并不意味着用作某些元语言的解释器。 然而，通过使用尖端和强烈的基准测试技术，Hana能够最小化编译器的压力。
+
+**注意**
+* 虽然Hana比前C ++ 11元编程库具有更好的编译时间，但是现代库仅支持类型级计算（例如Brigand）可以以通用性为代价提供更好的编译时间。 事实上，无论我们如何努力减轻它，Hana的操纵运行时价值的能力都是以编译时的成本。 如果你想使用Hana进行密集型类型计算，你应该进行基准测试，看看它是否适合你。
+
+在我们潜水之前，让我快速评论一下用于衡量Hana编译时性能的方法。先前的元编程库通过查看编译器必须执行的实例化的数量来测量它们的元算法和元序列的编译时复杂度。虽然容易理解，这种测量编译时复杂性的方法实际上不给我们有关编译时间的很多信息，这是我们有兴趣在一天结束时最小化。基本上，原因是模板元编程是这样一个扭曲的计算模型，很难找到一个标准的方法来衡量算法的性能。因此，我们不是呈现无意义的复杂性分析，而是对每个支持的编译器上的所有内容进行基准测试，并选择该编译器上最好的实现。还要注意，我们在这里提供的基准是相当精确的。事实上，即使我们不采取多个测量，并采取他们的意思或类似的减少不安，基准是非常稳定的，当他们被再生，这表明一个相当好的精度。现在，让我们潜水。
+
+首先，Hana最小化其对预处理器的依赖。除了在许多情况下产生更干净的错误消息，这减少了头文件的整体解析和预处理时间。此外，因为Hana只支持最前沿的编译器，库中只有很少的解决方法，这导致更干净和更小的库。最后，Hana最小化对任何类型的外部依赖性的依赖。特别是，它只在几个特定情况下使用其他Boost库，并且它不依赖于标准库的最大部分。这样做有几个原因（除了包括时间）;他们被记录在理由。
+
+以下是显示包含不同库所需时间的图表。该图表显示将每个库包含在每个库的（非外部）公共API中的时间。例如，对于Hana，这意味着<boost/hana.hpp>头，它排除外部适配器。对于其他库，如Boost.Fusion，这意味着包括boost/fusion/目录中的所有公共头，但不包括外部库（如MPL）的适配器。
+
+![编译时性能](./res/compiler_time.jpg)
+
+除了减少预处理时间，Hana还使用现代技术以尽可能高的编译时高效方式实现异构序列和算法。 在跳转到编译时性能的算法之前，我们将看看创建异构序列的编译时成本。 事实上，由于我们将展示用于序列的算法，因此我们必须意识到创建序列本身的成本，因为这将影响算法的基准。 下图显示了创建n个异构元素序列的编译时成本。
+
+![编译时性能](./res/compiler_time2.jpg)
+
+**注意**
+* 您可以通过选择要放大的区域来放大图表。 此外，您可以通过在右侧的图例中单击来隐藏一系列点。
+
+基准方法是始终以最有效的方式创建序列。对于Hana和std :: tuple，这只是意味着使用适当的make_tuple函数。然而，对于MPL，这意味着创建一个大小为20的mpl :: vectorN，然后使用mpl :: push_back创建更大的向量。我们使用类似的技术融合序列。这样做的原因是Fusion和MPL序列具有固定的大小限制，并且已经发现这里使用的技术是产生更长序列的最快方式。
+
+为了完整性，我们还提供了创建一个带有n个元素的std ::数组的编译时成本。但是，请注意，std :: array只能包含单一类型的元素，因此我们在这里比较苹果和橘子。正如你所看到的，创建std ::数组的代价是恒定的，本质上是不存在的（非零开销是简单地包括<array>头）。因此，虽然Hana提供了比其他异构容器更好的编译时间，请坚持使用正常的均匀容器，如果这是您的应用程序所需要的;你的编译时间会快得多。
+
+您还可以看到创建序列具有不可忽略的成本。实际上，这是做异构计算的最昂贵的部分，你会在下面的图表中看到。因此，当您查看下面的图表时，请记住仅仅创建序列的成本。还要注意，这里只介绍最重要的算法，但Metabench项目为几乎所有Hana算法的编译时性能提供了微观基准。此外，我们提供的基准比较几个不同的库。然而，由于Hana和Fusion可以使用值，而不仅仅是类型，比较他们的算法和类型的库像MPL不是真的公平。实际上，Hana和Fusion算法更强大，因为它们还允许执行运行时效应。但是，Fusion和Hana之间的比较是公平的，因为两个库都是一样强大的（严格来说）。最后，我们不能显示std :: tuple的算法的基准，因为标准不提供等效算法。当然，我们可以使用Hana的外部适配器，但这不会是一个忠实的比较。
+
+元编程中普遍存在的第一种算法是变换。它需要一个序列和一个函数，并返回一个包含将该函数应用于每个元素的结果的新序列。下面的图表给出了将变换应用到n个元素的序列的编译时性能。 x轴表示序列中元素的数量，y轴表示编译时间（以秒为单位）。还要注意，我们在每个库中使用变换等效;我们不使用Hana的转换通过Boost.Fusion适配器，例如，因为我们真的想要基准我们的实现。
+
+![编译时性能](./res/compiler_time3.jpg)
+
+在这里，我们可以看到，哈娜的元组表现比所有其他的选择。这主要是因为我们使用C ++ 11可变参数包扩展来实现这种算法，这是非常有效的。
+
+在我们继续前，重要的是要提到一些关于融合算法的基准测试方法。 Fusion中的一些算法是惰性的，这意味着它们实际上不执行任何操作，而只是将已修改的视图返回到原始数据。这是fusion :: transform的情况，它简单地返回一个变换的视图，将这个函数应用到原始序列的每个元素，因为这些元素被访问。如果我们想对任何东西进行基准测试，我们需要强制对该视图进行评估，最终在实际代码中访问序列的元素时会发生这种情况。然而，对于具有多个层的复杂计算，惰性方法可能产生实质上不同的编译时间简档。当然，这种差异在微基准测试中表现不佳，因此请记住，这些基准测试仅仅是一部分的大局。为了使本节其余部分的完整性，我们将提到Fusion算法是否为惰性，以便您知道何时人为地强制对算法进行评估以用于基准化。
+
+**注意**
+* 我们正在考虑给Hana添加懒惰的意见。 如果此功能对您很重要，请通过评论此问题告诉我们。
+
+第二类重要的算法是折叠。 折叠可以用于实现许多其他算法，如count_if，minimum等。 因此，折叠算法的良好编译时性能确保这些派生算法的良好的编译时性能，这就是为什么我们只在这里展示折叠。 还要注意，所有非monadic折叠变体在编译时间方面有些等同，因此我们只呈现左折叠。 下图显示了将fold_left应用于n个元素的序列的编译时性能。 x轴表示序列中元素的数量，y轴表示编译时间（以秒为单位）。 用于折叠的函数是一个不起作用的虚拟函数。 在实际代码中，您可能会使用非平凡操作进行折叠，因此曲线会比这更糟糕。 然而，这些是微基准，因此它们只显示算法本身的性能。
+
+![编译时性能](./res/compiler_time4.jpg)
+
+我们在这里提出的第三个和最后一个算法是find_if算法。 该算法难以有效地实现，因为它需要在满足给定谓词的第一元素处停止。 出于同样的原因，现代技术并不真正帮助我们，所以这个算法构成了对Hana的实现质量的一个很好的测试，没有考虑到由C ++ 14使用的免费午餐。
+
+![编译时性能](./res/compiler_time5.jpg)
+
+正如你所看到的，Hana的性能优于Fusion，以及MPL，但是Hana的find_if也可以与值一起使用，与MPL不同。 最后是关于编译时性能的部分。 如果你想看到一个我们没有在这里提出的算法的性能，Metabench项目提供了大多数哈纳算法的编译时基准。
+
+## 运行期性能
+
+Hana被设计成在运行时非常有效。但在我们深入细节之前，让我们澄清一件事。 Hana是一个元编程库，允许操纵类型和值，它并不总是有意义，甚至谈论运行时性能。实际上，对于IntegralConstants的类型级计算和计算，运行时性能根本不是一个问题，因为计算的结果包含在一个类型中，该类型是纯编译时实体。换句话说，这些计算仅涉及编译时工作，并且甚至不生成代码以在运行时执行这些计算。讨论运行时性能的唯一情况是在异构容器和算法中操作运行时值，因为这是编译器必须生成一些运行时代码的唯一情况。因此，只有这种计算，我们将在本节的剩余部分进行研究。
+
+就像我们对编译时基准测试一样，用于测量Hana运行时性能的方法是数据驱动而不是分析。换句话说，不是通过对作为输入大小的函数的基本操作的数量进行计数来尝试确定算法的复杂性，而是简单地对最有趣的情况进行测量并且观察它的行为。有这样做的几个原因。首先，我们不希望Hana的算法在大型输入上被调用，因为那些算法用于在编译时长度必须已知的异构序列。例如，如果您试图在100k个元素的序列上调用find_if算法，那么您的编译器会在尝试生成此算法的代码时死机。因此，不能在非常大的输入上调用算法，并且分析方法然后失去很大的吸引力。其次，处理器已经发展成为非常复杂的野兽，你能够挤出的实际性能实际上受控于比你的算法所执行的步骤数量少得多。例如，坏的高速缓存行为或分支误预测可以将理论上有效的算法变成慢速的，特别是对于小输入。由于Hana导致大量展开发生，这些因素必须更仔细地考虑，任何分析方法可能只会让我们认为我们是高效的。相反，我们想要硬数据，和漂亮的图表来显示它！
+
+**注意**
+* 就像编译时的性能一样，我们迫使对一些通常是懒惰的融合算法进行评估。 同样，取决于计算的复杂性，惰性算法可能导致产生实质上不同的代码或者使用不同的设计，或多或少。 当您查看这些运行时基准时，记住这一点。 如果性能对于您的应用程序是绝对关键的，您应该在从Fusion切换到Hana之前和之后进行配置。 让我们知道Hana是否更糟糕; 我们会解决它！
+
+有几个不同的方面，我们将要基准。首先，我们显然希望基准算法的执行时间。其次，由于在整个库中使用的按值语义，我们也希望确保最小数量的数据被复制。最后，我们将确保使用Hana不会导致太多的代码膨胀，因为展开，如算法一节中所解释。
+
+就像我们只研究了几个用于编译时性能的关键算法，我们将关注几个算法的运行时性能。对于每个基准方面，我们将比较不同库实现的算法。我们的目标是始终至少与Boost.Fusion一样高效，这在运行时性能方面接近最优。为了比较，我们还显示了与在运行时序列上执行的算法相同的算法，以及在编译时已知其长度但其变换算法不使用显式循环展开的序列。这里提出的所有基准都是在CMake配置中完成的，它配置了合适的优化标志（通常为-O3）。让我们从以下图表开始，其中显示了转换不同类型序列所需的执行时间：
+
+![运行时性能](./res/runtime.jpg)
+
+**注意**
+* 请记住，fusion :: transform通常是惰性的，我们正在强制它的评估为基准的目的。
+
+正如你所看到的，Hana和Fusion几乎是一样的。 对于较大的集合数据集，std :: array稍慢，对于较大的集合，std :: vector明显更慢。 因为我们也想要寻找代码膨胀，让我们来看看为完全相同的场景生成的可执行文件的大小：
+
+![运行时性能](./res/runtime2.jpg)
+
+正如你可以看到，代码膨胀似乎不是一个问题，至少没有一个可以在微基准测试，如这一个。 让我们来看看折叠算法，它经常使用：
+
+![运行时性能](./res/runtime3.jpg)
+
+在这里，你可以看到，每个人的表现都差不多，这是一个好的迹象，哈娜至少不是拧紧的东西。 再次，让我们看看可执行文件的大小：
+
+![运行时性能](./res/runtime4.jpg)
+
+这里再次，代码大小没有爆炸。 因此，至少对于Hana的适度使用（和Fusion就此事，因为他们有同样的问题），代码膨胀不应该是一个主要关注。 在我们刚刚介绍的图表中的容器包含随机生成的int，这是便宜的复制和适合微基准。 但是，当我们在一个容器中链接多个算法时会发生什么情况，这些容器的元素复制很昂贵？ 更一般地，问题是：当一个算法被传递一个临时对象，它抓住机会，以避免不必要的副本？ 考虑：
+
+```C++
+auto xs = hana::make_tuple("some"s, "huge"s, "string"s);
+// No copy of xs's elements should be made: they should only be moved around.
+auto ys = hana::reverse(std::move(xs));
+```
+
+为了回答这个问题，我们将看看基准化上述代码时生成的图表的字符串大约为1k个字符。 但是，请注意，对标准库算法进行基准测试并不合理，因为它们不返回容器。
+
+![运行时性能](./res/runtime5.jpg)
+
+**注意**
+* 请记住，fusion :: reverse通常是惰性的，我们强制其评估为基准的目的。
+
+如你所见，Hana比Fusion快，可能是因为在实现中更一致地使用move语义。 如果我们没有提供一个临时容器来撤销，哈纳不能执行任何动作，两个图书馆也会执行类似的操作：
+
+![运行时性能](./res/runtime6.jpg)
+
+这就是关于运行时性能的部分。 希望你现在确信哈娜是为速度而建的。 性能对我们很重要：如果你遇到一个场景，其中Hana导致坏代码生成（并且故障不在编译器上），请打开一个问题，以便解决问题。
 
 # 与外部库集成
 
+Hana提供了与一些现有库的开箱即用集成。 具体来说，这意味着您可以使用Hana算法中的这些库中的一些容器，只需包含适当的标头，使之成为Hana和外部组件之间的桥梁。 这可以非常有用的移植现有代码从例如。 Fusion / MPL到Hana：
+
+```C++
+// In the old code, this used to receive a Fusion sequence.
+// Now, it can be either a Hana sequence or a Fusion sequence.
+template <typename Sequence>
+void f(Sequence const& seq) {
+    hana::for_each(seq, [](auto const& element) {
+        std::cout << element << std::endl;
+    });
+}
+```
+
+**注意**
+* 此时，仅提供使用Hana中其他库的数据类型的适配器; 不提供适配器（使用其他库中的Hana容器）。
+
+但是，使用外部适配器有几个陷阱。 例如，过一段时间使用Hana，您可能习惯于使用正常的比较运算符比较Hana元组，或者使用Hana的integral_constants进行算术。 当然，没有什么能保证这些操作符也被定义为外部适配器（并且通常它们不会）。 因此，你必须坚持Hana提供的实现这些运算符的函数。 例如：
+
+```C++
+auto r = std::ratio<3, 4>{} + std::ratio<4, 5>{}; // error, the operator is not defined!
+```
+
+相反，您应该使用以下：
+
+```C++
+#include <boost/hana/ext/std/ratio.hpp>
+#include <boost/hana/plus.hpp>
+#include <ratio>
+namespace hana = boost::hana;
+auto r = hana::plus(std::ratio<3, 4>{}, std::ratio<4, 5>{});
+```
+
+但有时候，情况会更糟。 一些外部组件定义运算符，但它们不一定具有与来自Hana的语义相同的语义。 例如，比较两个不同长度的std ::元组会在使用operator ==时产生错误：
+
+```C++
+std::make_tuple(1, 2, 3) == std::make_tuple(1, 2); // compiler error
+```
+
+另一方面，比较不同长度的Hana元组将只返回一个错误的IntegralConstant：
+
+```C++
+hana::make_tuple(1, 2, 3) == hana::make_tuple(1, 2); // hana::false_c
+```
+
+这是因为std :: tuple定义了自己的操作符，它们的语义与Hana的操作符不同。 解决方案是坚持使用Hana的命名函数，而不是使用运算符，当你知道你将需要使用其他库：
+
+```C++
+hana::equal(std::make_tuple(1, 2, 3), std::make_tuple(1, 2)); // hana::false_c
+```
+
+当使用外部适配器时，还应小心不要忘记包括正确的桥接头。 例如，假设我想使用一个Boost.MPL向量与Hana。 我包括适当的桥头：
+
+```C++
+#include <boost/hana/ext/boost/mpl/vector.hpp> // bridge header
+using Vector = mpl::vector<int, char, float>;
+static_assert(hana::front(Vector{}) == hana::type_c<int>, "");
+```
+
+**注意**
+* 这些桥接头的确切布局在关于报头组织的部分中有说明。
+
+然而，现在，假设我使用mpl :: size查询向量的大小，然后将其与某个值进行比较。 我也可以使用hana :: length，一切都会很好，但为了例子的缘故与我一起：
+
+```C++
+using Size = mpl::size<Vector>::type;
+static_assert(hana::equal(Size{}, hana::int_c<3>), ""); // breaks!
+```
+
+这个断点的原因是mpl :: size返回一个MPL IntegralConstant，Hana无法知道这些，除非你包括正确的桥头。 因此，您应该执行以下操作：
+
+```C++
+#include <boost/hana/ext/boost/mpl/integral_c.hpp>
+using Size = mpl::size<Vector>::type;
+static_assert(hana::equal(Size{}, hana::int_c<3>), "");
+```
+
+士气是在使用外部库时，你必须对你所操作的对象有点小心。 最后的陷阱是关于外部库中的实现限制。 许多较旧的库对于可以使用它们创建的异构容器的最大大小有限制。 例如，不能创建包含FUSION_MAX_LIST_SIZE个以上元素的Fusion列表。 显然，这些限制是由Hana继承的，例如，试图计算包含5个元素的融合::列表的排列（结果列表将包含120个元素）将以可怕的方式失败：
+
+```C++
+auto list = fusion::make_list(1, 2, 3, 4, 5);
+auto oh_jeez = hana::permutations(list); // probably won't make it
+```
+
+除了在本节中解释的陷阱，使用外部适配器应该像使用正常的哈纳容器一样简单。 当然，只要有可能，你应该试着坚持Hana的容器，因为他们通常更友好的工作，并经常更优化。
+
 # Hana 核心
+
+本节的目标是对Hana的核心进行一个高层次的概述。 这个核心是基于标签的概念，它是从Boost.Fusion和Boost.MPL库借用的，但Hana进一步采取了。 这些标签然后用于多个目的，如算法定制，文档分组，改进错误消息和将容器转换为其他容器。 由于其模块化设计，Hana可以非常容易地以特别的方式扩展。 事实上，库的所有功能通过特定的定制机制提供，这在这里解释。
 
 ## Tag
 
+异构编程基本上是使用具有不同类型的对象进行编程。然而，很清楚，一些对象的家族，虽然具有不同的表示（C ++类型），是强烈相关的。例如，std :: integral_constant <int，n>类型对于每个不同的n是不同的，但在概念上它们都代表相同的东西;编译时编号。事实上，std :: integral_constant <int，1> {}和std :: integral_constant <int，2> {}有不同的类型只是一个事实的副作用，我们使用他们的类型来编码这些对象。事实上，当操作std :: integr_constant <int，...> s的序列时，你可能会认为它是一个虚拟的integral_constant类型的同构序列，忽略对象的实际类型，假装它们都是只是使用了不同值的integral_constants。
+
+为了反映这一现实，Hana提供了代表异构容器和其他编译时实体的标签。例如，所有的Hana的integral_constant <int，...>都有不同的类型，但是它们都有相同的标签，即integral_constant_tag <int>。这允许程序员根据单个类型来思考，而不是试图考虑对象的实际类型。具体来说，标签被实现为空结构体。为了使它们脱颖而出，Hana采用通过添加_tag后缀命名这些标签的约定。
+
+**注意**
+
+* 可以通过使用tag_of<T>::type或等效地tag_of_t <T>来获得类型T的对象的标签。
+
+标签是正常C++类型的扩展。 事实上，默认情况下，类型T的标签是T本身，并且库的核心被设计为在这些情况下工作。 例如，hana :: make期望标签或实际类型; 如果你发送一个类型T，它会做逻辑的事情，并构造一个类型T的对象与你传递的参数。 但是，如果您向其传递标记，则应该专门针对该标记进行处理，并提供自己的实现，如下所述。 因为标签是对通常类型的扩展，所以我们最终通常是标签而不是通常的类型的推理，文档有时使用单词类型，数据类型和标签可互换。
+
 ## Tag 分发
+
+标签调度是一种通用的编程技术，用于根据传递给函数的参数的类型来选择函数的正确实现。 重写函数行为的通常机制是重载。 不幸的是，当处理具有不同基本模板的相关类型的族时，或者当模板参数的种类不是已知的（是类型还是非类型模板参数？）时，这种机制并不总是方便的。 例如，考虑尝试为所有Boost.Fusion向量重载一个函数：
+
+```C++
+template <typename ...T>
+void function(boost::fusion::vector<T...> v) {
+    // whatever
+}
+```
+
+如果你知道Boost.Fusion，那么你可能知道它不会工作。 这是因为Boost.Fusion向量不一定是boost :: fusion :: vector模板的特化。 融合载体也以编号形式存在，它们都是不同类型：
+
+```C++
+boost::fusion::vector1<T>
+boost::fusion::vector2<T, U>
+boost::fusion::vector3<T, U, V>
+...
+```
+
+这是一个实现细节，需要通过缺少可变参数模板在C++03泄漏到接口。这是不幸的，但我们需要一种方法来解决它。为此，我们使用具有三个不同组件的基础结构：
+
+1. 一个元函数将单个标签关联到相关类型系列中的每个类型。在Hana中，可以使用tag_of元函数访问此标记。具体来说，对于任何类型T，tag_of <T> :: type是用于分派它的标签。
+2. 属于库的公共接口的函数，我们希望能够提供自定义实现。在Hana中，这些函数是与概念相关的算法，如变换或解包。
+3. 函数的实现，用传递给函数的参数的标签参数化。在Hana中，这通常通过具有一个名为xxx_impl（用于接口函数xxx）的单独模板与嵌套应用静态函数来完成，如下所示。
+
+当调用public接口函数xxx时，它将获得它希望分派调用的参数的标签，然后将调用转发到与这些标签相关联的xxx_impl实现。例如，让我们实现一个基本设置，用于将其参数打印到流的函数的标签分派。首先，我们定义公共接口函数和可以专门的实现：
+
+``` C++
+template <typename Tag>
+struct print_impl {
+  template <typename X>
+  static void apply(std::ostream&, X const&) {
+    // possibly some default implementation
+  }
+};
+template <typename X>
+void print(std::ostream& os, X x) {
+  using Tag = typename hana::tag_of<X>::type;
+  print_impl<Tag>::apply(os, x);
+}
+```
+
+现在，让我们定义一个类型，需要标签分派来自定义打印的行为。 虽然一些C ++ 14的例子存在，它们太复杂，不能在本教程中显示，因此我们将使用一个C ++ 03元组实现为几种不同的类型来说明该技术：
+
+```C++
+struct vector_tag;
+struct vector0 {
+  using hana_tag = vector_tag;
+  static constexpr std::size_t size = 0;
+};
+template <typename T1>
+struct vector1 {
+  T1 t1;
+  using hana_tag = vector_tag;
+  static constexpr std::size_t size = 1;
+  template <typename Index>
+  auto const& operator[](Index i) const {
+    static_assert(i == 0u, "index out of bounds");
+    return t1;
+  }
+};
+template <typename T1, typename T2>
+struct vector2 {
+  T1 t1; T2 t2;
+  using hana_tag = vector_tag;
+  static constexpr std::size_t size = 2;
+  // Using Hana as a backend to simplify the example.
+  template <typename Index>
+  auto const& operator[](Index i) const {
+    return *hana::make_tuple(&t1, &t2)[i];
+  }
+};
+// and so on...
+```
+
+嵌套使用hana_tag = vector_tag; 部分是控制tag_of元函数的结果的简单方式，因此是vectorN类型的标签。 这在tag_of的参考中解释。 最后，如果你想为所有的vectorN类型定制打印函数的行为，你通常需要沿着
+
+```C++
+void print(std::ostream& os, vector0)
+{ os << "[]"; }
+template <typename T1>
+void print(std::ostream& os, vector1<T1> v)
+{ os << "[" << v.t1 << "]"; }
+template <typename T1, typename T2>
+void print(std::ostream& os, vector2<T1, T2> v)
+{ os << "[" << v.t1 << ", " << v.t2 << "]"; }
+// and so on...
+```
+
+现在，使用标签分派，您可以依赖于所有共享相同标签的vectorNs，而只专门修改print_impl结构：
+
+```C++
+template <>
+struct print_impl<vector_tag> {
+  template <typename vectorN>
+  static void apply(std::ostream& os, vectorN xs) {
+    constexpr auto N = hana::size_c<vectorN::size>;
+    os << "[";
+    N.times.with_index([&](auto i) {
+      os << xs[i];
+      if (i != N - hana::size_c<1>) os << ", ";
+    });
+    os << "]";
+  }
+};
+```
+
+一个优点是，所有的vectorNs现在可以由打印函数均匀地处理，在创建数据结构（以指定每个向量N的标签）和创建初始打印函数（设置标签调度系统）时，以一些样板为代价 with print_impl）。 这种技术还有其他优点，如在接口函数中检查前提条件的能力，而不必在每个自定义实现中执行，这将是乏味的：
+
+```C++
+template <typename X>
+void print(std::ostream& os, X x) {
+  // **** check some precondition ****
+  // The precondition only has to be checked here; implementations
+  // can assume their arguments to always be sane.
+  using Tag = typename hana::tag_of<X>::type;
+  print_impl<Tag>::apply(os, x);
+}
+```
+
+**注意**
+
+* 检查前提条件对于打印函数没有多大意义，但是例如考虑获得序列的第n个元素的函数; 您可能需要确保索引不超出界限。
+
+这种技术还使得更容易提供接口函数作为函数对象而不是普通的重载函数，因为只有接口函数本身必须经历定义函数对象的麻烦。 函数对象具有超过重载函数的几个优点，例如用于更高阶算法或变量的能力：
+
+```C++
+// Defining a function object is only needed once and implementations do not
+// have to worry about static initialization and other painful tricks.
+struct print_t {
+  template <typename X>
+  void operator()(std::ostream& os, X x) const {
+    using Tag = typename hana::tag_of<X>::type;
+    print_impl<Tag>::apply(os, x);
+  }
+};
+constexpr print_t print{};
+```
+
+你可能知道，能够同时为许多类型实现一个算法是非常有用的（这正是C ++模板的目标！）。然而，甚至更有用的是为满足一些条件的许多类型实现算法的能力。 C ++模板目前缺少这种限制模板参数的能力，但是一个称为概念的语言特性正在推出，目的是解决这个问题。
+
+有了类似的想法，Hana的算法支持一个额外的标签调度层，如上所述。这个层允许我们为所有类型满足一些谓词的算法“专门化”。例如，假设我们想对所有表示某种序列的类型实现上面的print函数。现在，我们不会有一个简单的方法来做到这一点。然而，Hana算法的标签调度设置与上面显示的略有不同，因此我们可以写下:
+
+```C++
+template <typename Tag>
+struct print_impl<Tag, hana::when<Tag represents some kind of sequence>> {
+  template <typename Seq>
+  static void apply(std::ostream& os, Seq xs) {
+    // Some implementation for any sequence
+  }
+};
+```
+
+其中Tag表示某种类型的序列将仅需要是表示Tag是否是序列的布尔表达式。我们将看到如何在下一节中创建这样的谓词，但现在让我们假设它只是工作。在不详细说明如何设置该标签分配的情况下，上述专门化仅在满足该谓词时被选取，并且如果没有找到更好的匹配。因此，例如，如果我们的vector_tag要满足谓词，我们对vector_tag的初始实现仍然优先于基于hana :: when的特化，因为它表示更好的匹配。一般来说，任何不使用hana :: when的特殊化（无论是显式还是部分）将优先于使用hana :: when的特殊化，这从用户的角度来看尽可能不令人惊讶。这涵盖了几乎所有关于在哈娜的标签调度。下一节将解释如何为元编程创建C ++概念，然后可以与hana :: when结合使用来实现大量的表达。
 
 ## 模拟C++约束
 
+Hana中的概念的实现非常简单。 在它的核心，一个概念只是一个模板struct继承自一个布尔的integral_constant表示给定的类型是一个概念的模型：
+
+```C++
+template <typename T>
+struct Concept
+  : hana::integral_constant<bool, whether T models Concept>
+{ };
+```
+
+然后，可以通过查看Concept <T> :: value来测试类型T是否是Concept的模型。很简单，对吧？现在，虽然可能实现检查的方式不一定是任何具体的HANA，本节的其余部分将解释如何通常在Hana，以及它如何与标签调度交互。然后，您应该能够定义自己的概念，如果你愿意，或至少更好地了解哈纳内部工作。
+
+通常，Hana定义的概念将要求任何模型实现一些标签分派的函数。例如，Foldable概念要求任何模型定义至少一个hana :: unpack和hana :: fold_left。当然，概念通常也定义语义要求（称为法律），它们必须由他们的模型满足，但是这些规律不是（也不能）被概念检查。但是我们如何检查一些功能是否正确实现？为此，我们必须稍微修改我们定义的标签调度方法，如上一节所示。让我们回到我们的打印示例，并尝试为可打印的对象定义一个Printable概念。我们的最终目标是拥有一个模板结构如
+
+```C++
+template <typename T>
+struct Printable
+  : hana::integral_constant<bool, whether print_impl<tag of T> is defined>
+{ };
+```
+
+要知道是否定义了print_impl <...>，我们将修改print_impl，使得它在不被覆盖的情况下从一个特殊的基类继承，我们只需检查print_impl <T>是否继承了该基类：
+
+```C++
+struct special_base_class { };
+template <typename T>
+struct print_impl : special_base_class {
+  template <typename ...Args>
+  static constexpr auto apply(Args&& ...) = delete;
+};
+template <typename T>
+struct Printable
+    : hana::integral_constant<bool,
+        !std::is_base_of<special_base_class, print_impl<hana::tag_of_t<T>>>::value
+    >
+{ };
+```
+
+当然，当我们使用自定义类型专门化print_impl时，我们不会继承该special_base_class类型：
+
+```C++
+struct Person { std::string name; };
+template <>
+struct print_impl<Person> /* don't inherit from special_base_class */ {
+  // ... implementation ...
+};
+static_assert(Printable<Person>::value, "");
+static_assert(!Printable<void>::value, "");
+```
+
+正如你所看到的，Printable <T>只是检查print_impl <T> struct是否是一个自定义类型。 特别地，它甚至不检查是否定义嵌套的:: apply函数或者它是否在语法上有效。 假设如果一个专门用于自定义类型的print_impl，则嵌套的:: apply函数存在并且是正确的。 如果不是，则当尝试在该类型的对象上调用print时将触发编译错误。 Hana中的概念做出相同的假设。
+
+由于这种从特殊基类继承的模式在Hana中是相当丰富的，所以库提供了一个称为hana :: default_的虚拟类型，可以用于替换special_base_class。 然后，不使用std :: is_base_of，可以使用hana :: is_default，看起来更好。 有了这个语法糖，代码现在变成：
+
+```C++
+template <typename T>
+struct print_impl : hana::default_ {
+  template <typename ...Args>
+  static constexpr auto apply(Args&& ...) = delete;
+};
+template <typename T>
+struct Printable
+    : hana::integral_constant<bool,
+        !hana::is_default<print_impl<hana::tag_of_t<T>>>::value
+    >
+{ };
+```
+
+这就是要知道标签调度函数和概念之间的交互。然而，Hana中的一些概念不仅仅依赖于特定标签调度函数的定义来确定类型是否是概念的模型。当概念仅通过法律和精化概念引入语义保证，但没有额外的句法要求时，这可能发生。定义这样的概念由于几个原因是有用的。首先，如果我们可以假设一些语义保证X或Y，有时候会发生一个算法可以更有效地实现，所以我们可能创建一个概念来强制这些保证。其次，当我们有额外的语义保证时，有时可以自动定义几个概念的模型，这样可以节省用户手动定义这些模型的麻烦。例如，这是Sequence概念的情况，它基本上为Iterable和Foldable添加了语义保证，从而允许我们为从Comparable到Monad的大量概念定义模型。
+
+对于这些概念，通常需要在boost :: hana命名空间中专门化相应的模板结构以提供自定义类型的模型。这样做就像提供一个密封，说这个概念所要求的语义保证是由定制类型遵守的。需要明确专门化的概念将记录这一事实。这就是它！这是所有有必要了解的概念在哈纳，结束这一节关于Hana的核心。
+
 # 头文件组织
 
-# 结语
+库设计为模块化，同时保持必须包括的头的数量以获得相当低的基本功能。 库的结构也故意保持简单，因为我们都喜欢简单。 以下是头部组织的一般概述。 该库提供的所有标题的列表也可在左侧面板（标题标签下），以备您需要更多详细信息。
+
+* boost/hana.hpp
+  这是库的主标题，其中包括库的整个公共接口。请注意，外部适配器，实验功能和实现细节不包括在这个头中，但是，因为其中一些需要额外的依赖。
+* boost/hana/
+  这是包含库提供的一切的定义的库的主目录。库提供的每个算法和容器都有自己的头。对于一个名为XXX的容器或算法，相应的头是boost/hana/XXX.hpp。
+    * boost/hana/concept/
+    这个子目录包含Hana的概念的定义。这些头提供了一种检查对象是否是相应概念的模型的方法，并且它们有时还为其他相关概念提供默认实现，这些概念在每个概念的基础上被记录。它们还包括与该概念相关联的所有算法。
+    * boost/hana/core/
+    这个子目录包含标签调度和其他相关实用程序（如make和to）的机制。
+    * boost/hana/fwd/
+    这个子目录包含库中所有内容的前向声明。它本质上是boost / hana /目录的镜像，除了所有的头只包含前向声明和文档。例如，要包括hana :: tuple容器，可以使用boost / hana / tuple.hpp头。但是，如果只想要该容器的前向声明，可以使用boost / hana / fwd / tuple.hpp头。请注意，不提供在boost / hana/ ext/和boost/hana/functional /中的头的转发声明。
+    * boost/hana/functional/
+    这个子目录包含通常有用的各种函数对象，但不一定属于一个概念。
+    * boost/hana/ext/
+    此目录包含外部库的适配器。对于命名空间ns中名为xxx的组件，外部适配器位于boost / hana / ext / ns / xxx.hpp标头中。例如，std :: tuple的外部适配器位于boost / hana / ext / std / tuple.hpp头文件中，而boost :: mpl :: vector的外部适配器位于boost / hana / ext / boost / mpl /vector.hpp。
+
+    注意，只有适应外部组件所需的严格最小值才包括在这些头中（例如向前声明）。这意味着当想要使用外部组件时，应该包括外部组件的定义。例如：
+
+    ```C++
+    #include <boost / hana / ext / std / tuple.hpp>
+    #include <boost / hana / front.hpp>
+    #include <tuple> //仍然需要创建元组
+    namespace hana = boost :: hana;
+    int main（）{
+        constexpr std :: tuple <int，char，float> xs {1，'2'，3.0f};
+        static_assert（hana :: front（xs）== 1，“”）;
+    }
+    ```
+    * boost/han /experimental/
+    此目录包含实验性功能，可能会或可能不会在某一时刻进入库，但这被认为是有用的足够提供给公众。此子目录中的功能驻留在hana :: experimental命名空间中。此外，不要指望这些功能是稳定的;它们可以在库的发行之间被移动，重命名，改变或移除。这些功能还可能需要额外的外部依赖关系;每个功能记录其需要的附加依赖性（如果有）。
+
+    由于潜在的附加依赖性，这些头也不包括在库的主标题中。
+
+    * boost/hana/detail/
+    此目录包含内部需要的实用程序没有细节/保证是稳定的，所以你不应该使用它。
+
+# 结束语
+
+您现在拥有开始使用库所需的一切。 从这一点开始，掌握库只是理解如何使用通用概念和随其提供的容器的问题，最好通过查看参考文档来完成。 在某些时候，您可能还想创建自己的概念和数据类型，以更好地满足您的需求; 继续，库被设计为使用那种方式。
 
 ## Fair warning: functional programming ahead
 
+使用异构对象的编程本质上是功能性的 - 因为不可能修改对象的类型，所以必须引入新的对象，其排除了突变。 不像以前的元编程库设计是在STL建模，哈纳使用编程的功能风格，这是其表达性的很大一部分的来源。 然而，作为结果，在参考中呈现的许多概念对于没有功能编程知识的C ++程序员来说将是不熟悉的。 参考试图通过使用直觉尽可能使这些概念平易近人，但要记住，最高的奖励通常是一些努力的结果。
+
+这完成了教程部分的文档。 我希望你喜欢使用Hana，并请考虑贡献，使它更好！
+
+- Louis
+
 # 使用此参考
+
+对于大多数通用库，Hana中的算法通过它们所属的概念（Foldable，Iterable，Searchable，Sequence等等）来记录。 不同的容器然后被记录在他们自己的页面上，并且他们建模的概念被记录在那里。 由某个容器建模的概念定义了可以与这样的容器一起使用的算法。
+
+更具体地，参考的结构（在左边的菜单中可用）如下：
+
+* 核心
+  核心模块的文档，其中包含创建概念，数据类型和相关实用程序所需的一切。这是相关的，如果你需要扩展库，否则你可以忽略这一点。
+* 概念
+  与库一起提供的所有概念的文档。每个概念：
+    * 必须绝对实施函数的文档，以便对该概念建模。必须提供的函数集称为最小完整定义。
+    * 该概念的任何模型必须满足的文档语义约束。这些约束通常称为定律，它们以半正式数学语言表示。当然，这些法律不能自动检查，但你应该确保你满意他们。
+    * 记录其精炼的概念（如果有的话）。有时，一个概念是足够强大的，以提供一个概念的模型，它精炼，或至少一些相关的功能的实现。在这种情况下，该概念将记录其提供的精化概念的哪些功能，以及如何实现。此外，有时可能的是，用于精化概念的模型是唯一的，在这种情况下，其可以被自动提供。当这种情况发生时，它将被记录，但你不必做任何特殊的，以获得该模型。
+* 数据类型
+  与库一起提供的所有数据结构的文档。每个数据结构都记录了它模型的概念，以及它是如何实现的。它还记录了绑定到它的方法，但不是任何概念，例如也许是可选的。
+* 功能
+  通常在纯功能设置中有用的通用函数对象。这些目前没有绑定到任何概念或容器。
+* 外部适配器
+  外部库的所有适配器的文档。这些适配器被记录为Hana提供的本机类型，但显然Hana只提供它们和库之间的兼容层。
+* 配置选项
+  可用于调整库的全局行为的宏。
+* 断言
+  宏执行各种类型的断言。
+* 按字母顺序排列
+  库中提供的所有内容的字母索引。
+* 标题
+  库提供的所有标题的列表。
+* 细节
+  实施细节;不要去那里。任何未记录或记录在此组中的内容不能保证是稳定的。
+
+在你知道Hana更好一点之后，它可能会发生，你只是想找到一个精确的函数，概念或容器的参考。如果您知道要查找的内容的名称，可以使用文档任何页面右上角的搜索框。我个人的经验是，这是迄今为止，当你已经知道它的名字，找到你想要的最快的方式。
 
 ## 函数签名
 
+正如你将在参考中看到的，几个函数提供以半正式数学语言记录的签名。 我们正在以这种方式记录所有功能，但这可能需要一段时间。 使用的符号是用于定义函数的通常的数学符号。 具体地，函数Return f（Arg1，...，ArgN）; 可以使用数学符号as等价地定义:
+
+![函数签名](./res/func.jpg)
+
+然而，这些签名不是记录实际的参数和返回类型的函数，而是根据参数和返回标签来写。 这是因为异构设置，其中对象的实际类型通常是毫无意义的，并且不帮助推断什么是由函数返回或采取。 例如，不是将integral_constants的等函数记录为
+
+![函数签名](./res/func2.jpg)
+
+这是没有真正有用的（因为它真的不提供任何东西，但实现），而是记录使用integr_constant_tag，它充当所有的integral_constants的“类型”。 注意，因为equal是Comparable概念的一部分，所以实际上没有为hana :: integral_constant记录，但是想法是：
+
+![函数签名](./res/func3.jpg)
+
+这清楚地表达了比较两个整数常数给出另一个整数常数持有一个布尔的意图。 一般来说，对象的实际表示的这种抽象使我们能够以高级方式推理函数，即使它们的实际返回和参数类型是异质的并且没有帮助也是可能的。 最后，大多数函数期望容器元素具有一些属性。 例如，这是排序算法的情况，这显然需要容器元素是可订购的。 通常，我们将为sort的非预测版本写入签名
+
+![函数签名](./res/func4.jpg)
+
+然而，这并不表示S的内容是可订购的要求。 为了表达这一点，我们使用以下符号：
+
+![函数签名](./res/func5.jpg)
+
+看到这一点的一种方法是假装S，序列标签，实际上是由序列的元素T的标签参数化。我们还假装这些元素都有相同的标签T，这不是一般的情况 。 现在，通过说明T必须是Orderable，我们表达的事实，序列的元素必须是Orderable。 这种符号用于不同的口味来表达不同种类的需求。 例如，cartesian_product算法采用一系列序列，并将那些序列的笛卡尔积作为序列序列返回。 使用我们的标记，这可以很容易地传达：
+
+![函数签名](./res/func6.jpg)
+
+
 # 致谢
+
+我要感谢以下人员和组织以这样或那样的方式贡献哈娜：
+
+* Zach Laine和Matt Calabrese提出了使用函数调用语法做类型计算的原始想法，如BoostCon演示文稿（幻灯片1）（幻灯片2）中所示。
+* Joel Falcou在我作为Google夏季代码计划的一部分工作期间连续两年指导我，Niall Douglas作为Boost的GSoC管理员，帮助我加入计划，最终让Google获得了令人敬佩的GSoC计划。
+B* oost指导委员会为我在2015年冬天在Hana工作授予资金，作为对上一年GSoC的延伸。
+* 几个C++现在的参与者和Boost邮件列表的成员，有关该项目的深入的对话，评论和问题。
 
 # 词汇表
 
+参考文档使用特定于此库的几个术语。 此外，功能的简化实现有时在伪代码中提供，实际实现有时稍微难以理解。 本节定义在引用和用于描述一些函数的伪代码中使用的术语。
+
+## forwarded(x)
+
+意味着对象被最佳地转发。 这意味着如果x是一个参数，它是std ::转发，如果它是一个捕获的变量，它从每当包围lambda是一个右值时移动。
+
+还要注意，当x可以移出时，语句return forwarded（x）; 在带有decltype（auto）的函数中，并不意味着将返回对x的右值引用，这将创建一个悬挂引用。 相反，它意味着x由值返回，值由std :: forwarded x构造。
+
+## perfect-capture
+
+这在lambdas中用于表示捕获的变量使用完美转发进行初始化，就好像使用了[x（forwarded（x））...]（）{}。
+
+## tag-dispatched
+
+这意味着记录的函数使用标签分派，因此确切的实现取决于与函数相关联的概念的模型。
+
+## implementation-defined
+
+这表示实体（通常是类型）的确切实现不应被用户依赖。 特别是，这意味着，不能假设任何超出文档中明确书面的内容。 通常，由实现定义的实体满足的概念将被记录，因为否则可能对它不起作用。 具体来说，假设太多的实现定义的实体可能不会杀了你，但是当你更新到较新版本的Hana时，它很可能会破坏你的代码。
+
 # 快速问答
+
+本节记录了一些设计选择的理由。 它也作为一些（不是这样）常见问题的常见问题。 如果你认为应该添加到这个列表，打开一个GitHub问题，我们将考虑改进文档或在这里添加问题。
+
+##为什么要限制外部依赖的使用？
+
+这样做有几个原因。首先，哈纳是一个非常基础的图书馆;我们基本上重新实现了核心语言和支持异构类型的标准库。当经历代码时，人们很快意识到，其他库很少需要，几乎一切都必须从头开始实现。此外，由于Hana是非常基本的，因此更有动机保持依赖最小，因为那些依赖将传递给用户。关于对Boost最小的依赖，使用它的一个大论据是可移植性。然而，作为一个前沿库，Hana只定位最近的编译器。因此，我们可以依赖于现代构造，并且通过使用Boost提供给我们的可移植性将主要代表自重。
+
+##为什么没有迭代器？
+
+基于迭代器的设计具有它们自己的优点，但是也已知它们降低算法的可组合性。此外，异构编程的上下文带来了很多点，使迭代器不那么有趣。例如，递增迭代器将必须返回具有不同类型的新迭代器，因为它在序列中指向的新对象的类型可能不同。它也证明，在迭代器方面实现大多数算法导致更差的编译时性能，只是因为元编程的执行模型（使用编译器作为解释器）与C ++的运行时执行模型（处理器访问连续存储器）。
+
+##为什么要留下一些容器的表示实现定义？
+
+首先，它为实现提供了更多的摆动空间，通过使用特定容器的聪明表示来执行编译时和运行时优化。 例如，包含类型T的同类对象的元组可以实现为类型T的数组，这在编译时更有效。 其次，最重要的是，知道一个异构容器的类型不如你想象的有用。 实际上，在异构编程的上下文中，由计算返回的对象的类型通常也是计算的一部分。 换句话说，没有办法知道由算法返回的对象的类型，而不实际执行算法。 例如，考虑find_if算法：
+
+```C++
+auto tuple = hana::make_tuple(1, 'x', 3.4f);
+auto result = hana::find_if(tuple, [](auto const& x) {
+  return hana::traits::is_integral(hana::typeid_(x));
+});
+```
+
+如果对元组的某些元素满足谓词，结果将等于just（x）。 否则，结果将等于无。 然而，结果的空白在编译时是已知的，这需要只有（x），没有什么可以有不同的类型。 现在，假设你想明确地写出结果的类型：
+
+```C++
+some_type result = hana::find_if(tuple, [](auto const& x) {
+  return hana::traits::is_integral(hana::typeid_(x));
+});
+```
+
+为了拥有some_type的知识，您需要实际执行算法，因为some_type取决于容器中某些元素的谓词是否得到满足。 换句话说，如果你能够写上面的话，那么你就已经知道了算法的结果，你不需要首先执行算法。 在Boost.Fusion中，通过具有单独的result_of命名空间来解决这个问题，该命名空间包含计算给定传递给它的参数的类型的任何算法的结果类型的元函数。 例如，上面的例子可以用Fusion重写为：
+
+```C++
+using Container = fusion::result_of::make_vector<int, char, float>::type;
+Container tuple = fusion::make_vector(1, 'x', 3.4f);
+using Predicate = mpl::quote1<std::is_integral>;
+using Result = fusion::result_of::find_if<Container, Predicate>::type;
+Result result = fusion::find_if<Predicate>(tuple);
+```
+
+注意，我们基本上是做计算两次; 一次在result_of命名空间中，一次在正常的融合命名空间中，这是高度冗余的。 在auto和decltype之前，这样的技术对于执行异构计算是必要的。 然而，由于现代C ++的出现，在异构编程的上下文中对显式返回类型的需要在很大程度上已经过时，并且知道容器的实际类型通常不是有用的。
+
+##为什么命名为Hana？
+
+不，这不是我女朋友的名字！我只需要一个短而好看的名字，人们会很容易记得，而且Hana来了。这也使我注意到，Hana是指日本花，一个在韩国。由于Hana是漂亮的，它统一了单一范式下的类型级和异构编程，这个名称在回顾中是相当不错的选择:-)。
+
+##为什么要定义我们自己的元组？
+
+由于Hana在元组上定义了很多算法，一个可能的方法是简单地使用std :: tuple并提供算法，而不是提供我们自己的元组。提供我们自己的元组的原因主要是性能。事实上，迄今为止测试的所有std :: tuple实现都有非常糟糕的编译时性能。此外，为了获得真正惊人的编译时性能，我们需要利用元组的内部表示在一些算法，这需要定义我们自己的。最后，如果我们使用一个std :: tuple，就不能提供一些像运算符[]的糖，因为该运算符必须定义为成员函数。
+
+##如何选择名称？
+
+当决定一个名字X时，我尝试平衡以下事情（没有特定的顺序）：
+
+* C++中的X是如何惯用的？
+* 在编程世界的其余部分，X是如何惯用的？
+* 一个名字X实际上是多好，不管历史原因
+* 我如何作为库作者，感觉到X
+* 库的用户如何感受X
+* 是否有技术原因不使用X，如名称冲突或标准保留的名称
+
+当然，好的命名永远是困难的。名称是并将永远受到作者自己的偏见的污染。不过，我尝试以合理的方式选择名字。
+
+##如何决定参数顺序？
+
+不像命名，这是相当主观的，函数的参数的顺序通常是相当简单的确定。基本上，经验法则是“容器先行”。在Fusion和MPL中一直是这种方式，对于大多数C++程序员来说这是直观的。此外，在高阶算法中，我尝试将函数参数放在最后，以便多行lambdas看起来不错：
+
+```C++
+algorithm(container, [](auto x) {
+  return ...;
+});
+// is nicer than
+algorithm([](auto x) {
+  return ...;
+}, container);
+```
+
+##为什么使用标签调度？
+
+我们可以使用几种不同的技术在库中提供自定义点，并且选择了标签分发。为什么？首先，我想要一个双层调度系统，因为这允许第一层（用户调用的那些）的函数实际上是函数对象，这允许将它们传递给更高阶的算法。使用具有两个层的调度系统还允许向第一层添加一些编译时健全性检查，这改进了错误消息。
+
+现在，由于几个原因，选择标签调度而不是其他具有两层的技术。首先，必须明确地声明一些标签是一个概念的模型是否有责任确保概念的语义要求被尊重给用户。其次，当检查类型是否是某个概念的模型时，我们基本上检查一些关键函数是否被实现。特别地，我们检查从该概念的最小完整定义的功能被实现。例如，Iterable <T>检查是否为T实现了is_empty，at和drop_front函数。但是，没有标签分派的情况下检测这个函数的唯一方法是基本检查以下表达式是否在SFINAE-able上下文中有效：
+
+```C++
+implementation_of_at(std::declval<T>(), std::declval<N>())
+implementation_of_is_empty(std::declval<T>())
+implementation_of_drop_front(std::declval<T>())
+```
+
+不幸的是，这需要实际做算法，这可能触发硬编译时错误或损害编译时性能。 此外，这需要选择一个任意索引N调用at：如果Iterable是空的怎么办？ 使用标签分派，我们可以询问是否定义了at_impl <T>，is_empty_impl <T>和drop_front_impl <T>，并且没有发生任何事情，直到我们实际调用它们的嵌套:: apply函数。
+
+##为什么不提供zip_longest？
+
+它需要（1）用任意对象填充最短序列，或（2）在调用zip_longest时用用户提供的对象填充最短序列。由于不需要所有压缩序列具有类似类型的元素，因此在所有情况下都没有办法提供单个一致的填充对象。应该提供一个填充对象的元组，但我发现它可能太复杂，值得现在。如果您需要此功能，请打开一个GitHub问题。
+
+##为什么concept不是constexpr函数？
+
+由于C ++concept提议将概念映射到布尔constexpr函数，因此Hana定义其concept也是有意义的，而不是具有嵌套::value的结构体。事实上，这是第一个选择，但它必须修改，因为模板函数有一个限制，使它们更不灵活
+
+```C++
+template <??? Concept>
+struct some_metafunction {
+  // ...
+};
+```
+
+这种代码在某些上下文中非常有用，例如检查两种类型是否具有常见的嵌入建模概念：
+
+```C++
+template <??? Concept, typename T, typename U>
+struct have_common_embedding {
+  // whether T and U both model Concept, and share a common type that also models Concept
+};
+```
+
+使用concept作为布尔constexpr函数，这不能一般写。 当概念只是模板结构时，我们可以使用模板模板参数：
+
+```C++
+template <template <typename ...> class Concept, typename T, typename U>
+struct have_common_embedding {
+  // whether T and U both model Concept, and share a common type that also models Concept
+};
+```
 
 # 附录一：高级constexpr
 
+在C ++中，编译时和运行时之间的边界是模糊的，这在C ++ 14中引入泛化常量表达式时更是如此。 然而，能够操纵异质对象是所有关于理解的边界，然后穿过它的意志。 这个部分的目标是用constexpr设置事情的直线; 以了解哪些问题可以解决，哪些不能。 这部分涵盖了关于常量表达式的高级概念; 只有对constexpr有很好理解的读者应该尝试读这个。
+
 ## Constexpr剥离
+
+让我们开始一个具有挑战性的问题。 下面的代码可编译吗？
+
+```C++
+template <typename T>
+void f(T t) {
+  static_assert(t == 1, "");
+}
+constexpr int one = 1;
+f(one);
+```
+
+答案是否定的，由Clang给出的错误就像:
+
+```C++
+error: static_assert expression is not an integral constant expression
+  static_assert(t == 1, "");
+                ^~~~~~
+```
+
+解释是在f的体内部，t不是常数表达式，因此它不能用作static_assert的操作数。 原因是这样的函数根本不能由编译器生成。 要理解这个问题，考虑当我们使用具体类型实例化f模板时应该发生什么：
+
+```C++
+// Here, the compiler should generate the code for f<int> and store the
+// address of that code into fptr.
+void (*fptr)(int) = f<int>;
+```
+
+显然，编译器不能生成f <int>的代码，如果t！= 1，它应该触发一个static_assert，因为我们还没有指定。 更糟的是，生成的函数应该在常量和非常量表达式上工作：
+
+```C++
+void (*fptr)(int) = f<int>; // assume this was possible
+int i = ...; // user input
+fptr(i);
+```
+
+显然，不能生成fptr的代码，因为它需要能够对运行时值进行static_assert，这是没有意义的。 此外，注意，无论你是否使用constexpr函数都没关系; 使f constexpr只声明f的结果是一个常量表达式，只要它的参数是一个常量表达式，但它仍然不能让你知道你是否使用f的body中的常量表达式调用。 换句话说，我们想要的是：
+
+```C++
+template <typename T>
+void f(constexpr T t) {
+  static_assert(t == 1, "");
+}
+constexpr int one = 1;
+f(one);
+```
+
+在这个假设情况下，编译器将知道t是来自f的主体的常量表达式，并且可以使static_assert起作用。 然而，constexpr参数在当前语言中不存在，并且添加它们将带来非常具有挑战性的设计和实现问题。 这个小实验的结论是*参数传递剥离了constexpr-ness*。 现在可能不清楚的是这种剥离的后果，接下来解释。
 
 ## Constexpr保存
 
+参数不是常量表达式意味着我们不能将其用作非类型模板参数，数组绑定，static_assert或需要常量表达式的任何其他值。 此外，这意味着函数的返回类型不能取决于参数的值，如果你考虑它是一个新的东西：
+
+```C++
+template <int i>
+struct foo { };
+auto f(int i) -> foo<i>; // obviously won't work
+```
+
+事实上，函数的返回类型只能取决于它的参数的类型，而constexpr不能改变这个事实。 这对我们至关重要，因为我们对操作异构对象感兴趣，这最终意味着根据函数的参数返回具有不同类型的对象。 例如，一个函数可能希望在一种情况下返回类型T的对象，在另一种情况下返回类型U的对象; 从我们的分析，我们现在知道这些“情况”将必须依赖于参数类型编码的信息，而不是它们的值。
+
+为了通过参数传递来保留constexpr，我们必须将constexpr值编码为一个类型，然后将一个不一定是该类型的constexpr对象传递给函数。 该函数必须是模板，然后可以访问在该类型内编码的constexpr值。
+
+**TODO**
+* 改进这个解释，并谈论包装成类型的非整数常量表达式。
+
 ## 副作用
+
+让我提一个棘手的问题。 以下代码是否有效？
+
+```C++
+template <typename T>
+constexpr int f(T& n) { return 1; }
+int n = 0;
+constexpr int i = f(n);
+```
+
+答案是肯定的，但原因可能不明显。 这里发生的是，我们有一个非constexpr int n和一个constexpr函数f引用它的参数。 大多数人认为它不应该工作的原因是n不是constexpr。 但是，我们不在f内部做任何事情，所以没有实际的理由，为什么这不应该工作！ 这有点像在内部的一个constexpr函数：
+
+```C++
+constexpr int sqrt(int i) {
+  if (i < 0) throw "i should be non-negative";
+  return ...;
+}
+constexpr int two = sqrt(4); // ok: did not attempt to throw
+constexpr int error = sqrt(-4); // error: can't throw in a constant expression
+```
+
+只要throw出现的代码路径不被执行，调用的结果可以是常量表达式。 同样，我们可以做任何我们想要的在f，只要我们不执行一个代码路径需要访问它的参数n，这不是一个常量表达式：
+
+```C++
+template <typename T>
+constexpr int f(T& n, bool touch_n) {
+  if (touch_n) n + 1;
+  return 1;
+}
+int n = 0;
+constexpr int i = f(n, false); // ok
+constexpr int j = f(n, true); // error
+```
+
+Clang给出的第二次调用的错误是:
+
+```C++
+error: constexpr variable 'j' must be initialized by a constant expression
+constexpr int j = f(n, true); // error
+              ^   ~~~~~~~~~~
+note: read of non-const variable 'n' is not allowed in a constant expression
+  if (touch_n) n + 1;
+               ^
+```
+
+让我们现在介绍一下游戏，并考虑一个更微妙的例子。 以下代码是否有效？
+
+```C++
+template <typename T>
+constexpr int f(T n) { return 1; }
+int n = 0;
+constexpr int i = f(n);
+```
+
+与我们的初始场景唯一的区别是，f现在的参数按值而不是引用。 然而，这使一个世界有所不同。 事实上，我们现在要求编译器创建一个n的副本，并将此副本传递给f。 然而，n不是constexpr，所以它的值只在运行时知道。 编译器如何编译一个变量的副本（在编译时），该变量的值只在运行时才知道？ 当然，它不能。 事实上，Clang给出的错误信息对于发生了什么很清楚：
+
+```C++
+error: constexpr variable 'i' must be initialized by a constant expression
+constexpr int i = f(n);
+              ^   ~~~~
+note: read of non-const variable 'n' is not allowed in a constant expression
+constexpr int i = f(n);
+                    ^
+```
+
+**TODO**
+* 解释在常量表达式中不会出现副作用，即使它们产生的表达式不被访问。
 
 # 附录二：一个Mini MPL库
 
+本节介绍了MPL库的一个小型重新实现。 目标是尽可能向后兼容MPL，同时仍然使用Hana引擎盖下。 只有MPL的“算法”部分被实现为一个案例研究，但是应该可以实现MPL的许多（但不是全部）元函数。
+
+向下滚动到主函数以查看测试。 测试正是MPL文档中的示例，它们被复制/粘贴，然后尽可能少地修改以使用此重新实现。
+
+```C++
+// Copyright Louis Dionne 2013-2016
+// Distributed under the Boost Software License, Version 1.0.
+// (See accompanying file LICENSE.md or copy at http://boost.org/LICENSE_1_0.txt)
+#include <boost/hana.hpp>
+#include <boost/hana/ext/boost/mpl.hpp>
+#include <boost/hana/ext/std.hpp>
+#include <boost/mpl/lambda.hpp>
+#include <boost/mpl/placeholders.hpp>
+#include <boost/mpl/quote.hpp>
+#include <iostream>
+#include <type_traits>
+namespace hana = boost::hana;
+namespace mpl = boost::mpl;
+namespace hpl {
+//////////////////////////////////////////////////////////////////////////////
+// Utilities
+//////////////////////////////////////////////////////////////////////////////
+namespace detail {
+    template <typename Pred>
+    constexpr auto mpl_predicate = hana::integral(hana::metafunction_class<
+        typename mpl::lambda<Pred>::type
+    >);
+    template <typename F>
+    constexpr auto mpl_metafunction = hana::metafunction_class<
+        typename mpl::lambda<F>::type
+    >;
+}
+//////////////////////////////////////////////////////////////////////////////
+// integral_c
+//////////////////////////////////////////////////////////////////////////////
+template <typename T, T v>
+using integral_c = std::integral_constant<T, v>;
+template <int i>
+using int_ = integral_c<int, i>;
+template <long i>
+using long_ = integral_c<long, i>;
+template <bool b>
+using bool_ = integral_c<bool, b>;
+using true_ = bool_<true>;
+using false_ = bool_<false>;
+//////////////////////////////////////////////////////////////////////////////
+// Sequences, compile-time integers & al
+//
+// Differences with the MPL:
+// 1. `pair<...>::first` and `pair<...>::second` won't work;
+//    use `first<pair<...>>` instead
+//////////////////////////////////////////////////////////////////////////////
+template <typename ...T>
+using vector = hana::tuple<hana::type<T>...>;
+template <typename T, T ...v>
+using vector_c = hana::tuple<hana::integral_constant<T, v>...>;
+template <typename T, T from, T to>
+using range_c = decltype(hana::range_c<T, from, to>);
+template <typename T, typename U>
+using pair = hana::pair<hana::type<T>, hana::type<U>>;
+template <typename P>
+struct first : decltype(+hana::first(P{})) { };
+template <typename P>
+struct second : decltype(+hana::second(P{})) { };
+//////////////////////////////////////////////////////////////////////////////
+// Miscellaneous metafunctions
+//////////////////////////////////////////////////////////////////////////////
+template <typename C1, typename C2>
+struct equal_to
+    : bool_<C1::value == C2::value>
+{ };
+template <typename C1, typename C2>
+struct less
+    : bool_<(C1::value < C2::value)>
+{ };
+template <typename C1, typename C2>
+struct greater
+    : bool_<(C1::value > C2::value)>
+{ };
+template <typename N>
+struct next
+    : integral_c<typename N::value_type, N::value + 1>
+{ };
+//////////////////////////////////////////////////////////////////////////////
+// Intrinsics
+//
+// Differences with the MPL:
+// 1. `at` does not work for associative sequences; use `find` instead.
+// 2. `begin`, `end`, `clear`, `erase`, `erase_key`, `insert`, `insert_range`,
+//    `is_sequence`, `key_type`, `order`, `sequence_tag`, `value_type`: not implemented
+//////////////////////////////////////////////////////////////////////////////
+template <typename Sequence, typename N>
+struct at
+    : decltype(hana::at(Sequence{}, N{}))
+{ };
+template <typename Sequence, long n>
+using at_c = at<Sequence, long_<n>>;
+template <typename Sequence>
+struct back
+    : decltype(+hana::back(Sequence{}))
+{ };
+template <typename Sequence>
+struct empty
+    : decltype(hana::is_empty(Sequence{}))
+{ };
+template <typename Sequence>
+struct front
+    : decltype(+hana::front(Sequence{}))
+{ };
+template <typename Sequence>
+struct pop_back {
+    using type = decltype(hana::drop_back(
+        hana::to_tuple(Sequence{}), hana::size_c<1>
+    ));
+};
+template <typename Sequence>
+struct pop_front {
+    using type = decltype(hana::drop_front(Sequence{}));
+};
+template <typename Sequence, typename T>
+struct push_back {
+    using type = decltype(hana::append(Sequence{}, hana::type_c<T>));
+};
+template <typename Sequence, typename T>
+struct push_front {
+    using type = decltype(hana::prepend(Sequence{}, hana::type_c<T>));
+};
+template <typename Sequence>
+struct size
+    : decltype(hana::length(Sequence{}))
+{ };
+//////////////////////////////////////////////////////////////////////////////
+// Iteration algorithms
+//
+// Differences with the MPL:
+// 1. reverse_fold:
+//    Does not take an optional additional ForwardOp argument.
+//
+// 2. iter_fold, reverse_iter_fold:
+//    Not implemented because we don't use iterators
+//////////////////////////////////////////////////////////////////////////////
+template <typename Sequence, typename State, typename F>
+struct fold
+    : decltype(hana::fold(
+        Sequence{}, hana::type_c<State>, detail::mpl_metafunction<F>
+    ))
+{ };
+template <typename Sequence, typename State, typename F>
+struct reverse_fold
+    : decltype(hana::reverse_fold(
+        Sequence{}, hana::type_c<State>, detail::mpl_metafunction<F>
+    ))
+{ };
+template <typename Sequence, typename State, typename F>
+using accumulate = fold<Sequence, State, F>;
+//////////////////////////////////////////////////////////////////////////////
+// Query algorithms
+//
+// Differences with the MPL:
+// 1. find_if and find:
+//    Instead of returning an iterator, they either have a nested `::type`
+//    alias to the answer, or they have no nested `::type` at all, which
+//    makes them SFINAE-friendly.
+//
+// 2. lower_bound, upper_bound:
+//    Not implemented.
+//
+// 3. {min,max}_element:
+//    Not returning an iterator, and also won't work on empty sequences.
+//////////////////////////////////////////////////////////////////////////////
+template <typename Sequence, typename Pred>
+struct find_if
+    : decltype(hana::find_if(Sequence{}, detail::mpl_predicate<Pred>))
+{ };
+template <typename Sequence, typename T>
+struct find
+    : decltype(hana::find(Sequence{}, hana::type_c<T>))
+{ };
+template <typename Sequence, typename T>
+struct contains
+    : decltype(hana::contains(Sequence{}, hana::type_c<T>))
+{ };
+template <typename Sequence, typename T>
+struct count
+    : decltype(hana::count(Sequence{}, hana::type_c<T>))
+{ };
+template <typename Sequence, typename Pred>
+struct count_if
+    : decltype(hana::count_if(Sequence{}, detail::mpl_predicate<Pred>))
+{ };
+template <typename Sequence, typename Pred = mpl::quote2<less>>
+struct min_element
+    : decltype(hana::minimum(Sequence{}, detail::mpl_predicate<Pred>))
+{ };
+template <typename Sequence, typename Pred = mpl::quote2<less>>
+struct max_element
+    : decltype(hana::maximum(Sequence{}, detail::mpl_predicate<Pred>))
+{ };
+template <typename S1, typename S2, typename Pred = mpl::quote2<std::is_same>>
+struct equal
+    : decltype( // inefficient but whatever
+        hana::length(S1{}) == hana::length(S2{}) &&
+        hana::all(hana::zip_shortest_with(detail::mpl_predicate<Pred>,
+                hana::to_tuple(S1{}),
+                hana::to_tuple(S2{})))
+    )
+{ };
+//////////////////////////////////////////////////////////////////////////////
+// Transformation algorithms
+//
+// Differences from the MPL:
+// 1. The algorithms do not accept an optional inserter, and they always
+//    return a `vector`.
+// 2. stable_partition: not implemented
+// 3. All the reverse_* algorithms are not implemented.
+//////////////////////////////////////////////////////////////////////////////
+template <typename Sequence>
+struct copy {
+    using type = decltype(hana::to_tuple(Sequence{}));
+};
+template <typename Sequence, typename Pred>
+struct copy_if {
+    using type = decltype(hana::filter(
+        hana::to_tuple(Sequence{}),
+        detail::mpl_predicate<Pred>
+    ));
+};
+template <typename Sequence, typename Sequence_or_Op, typename = void>
+struct transform;
+template <typename Sequence, typename Op>
+struct transform<Sequence, Op> {
+    using type = decltype(hana::transform(
+        hana::to_tuple(Sequence{}), detail::mpl_metafunction<Op>
+    ));
+};
+template <typename S1, typename S2, typename Op>
+struct transform {
+    using type = decltype(hana::zip_with(
+        detail::mpl_metafunction<Op>,
+        hana::to_tuple(S1{}),
+        hana::to_tuple(S2{})
+    ));
+};
+template <typename Sequence, typename OldType, typename NewType>
+struct replace {
+    using type = decltype(hana::replace(
+        hana::to_tuple(Sequence{}),
+        hana::type_c<OldType>,
+        hana::type_c<NewType>
+    ));
+};
+template <typename Sequence, typename Pred, typename NewType>
+struct replace_if {
+    using type = decltype(hana::replace_if(
+        hana::to_tuple(Sequence{}),
+        detail::mpl_predicate<Pred>,
+        hana::type_c<NewType>
+    ));
+};
+template <typename Sequence, typename T>
+struct remove {
+    using type = decltype(hana::filter(
+        hana::to_tuple(Sequence{}),
+        hana::not_equal.to(hana::type_c<T>)
+    ));
+};
+template <typename Sequence, typename Pred>
+struct remove_if {
+    using type = decltype(hana::filter(
+        hana::to_tuple(Sequence{}),
+        hana::compose(hana::not_, detail::mpl_predicate<Pred>)
+    ));
+};
+template <typename Sequence, typename Pred>
+struct unique {
+    using type = decltype(hana::unique(
+        hana::to_tuple(Sequence{}),
+        detail::mpl_predicate<Pred>
+    ));
+};
+template <typename Sequence, typename Pred>
+struct partition {
+    using hana_pair = decltype(hana::partition(
+        hana::to_tuple(Sequence{}),
+        detail::mpl_predicate<Pred>
+    ));
+    using type = pair<
+        decltype(hana::first(hana_pair{})),
+        decltype(hana::second(hana_pair{}))
+    >;
+};
+template <typename Sequence, typename Pred = mpl::quote2<less>>
+struct sort {
+    using type = decltype(hana::sort(
+        hana::to_tuple(Sequence{}), detail::mpl_predicate<Pred>
+    ));
+};
+template <typename Sequence>
+struct reverse {
+    using type = decltype(hana::reverse(hana::to_tuple(Sequence{})));
+};
+//////////////////////////////////////////////////////////////////////////////
+// Runtime algorithms
+//////////////////////////////////////////////////////////////////////////////
+template <typename Sequence, typename F>
+void for_each(F f) {
+    hana::for_each(Sequence{}, [&f](auto t) {
+        f(typename decltype(t)::type{});
+    });
+}
+template <typename Sequence, typename TransformOp, typename F>
+void for_each(F f) {
+    for_each<typename transform<Sequence, TransformOp>::type>(f);
+}
+} // end namespace hpl
+template <typename N>
+struct is_odd
+    : hpl::bool_<(N::value % 2)>
+{ };
+int main() {
+using namespace hpl;
+//////////////////////////////////////////////////////////////////////////////
+// Misc
+//////////////////////////////////////////////////////////////////////////////
+// pair
+{
+    static_assert(std::is_same<first<pair<int, float>>::type, int>{}, "");
+    static_assert(std::is_same<second<pair<int, float>>::type, float>{}, "");
+}
+//////////////////////////////////////////////////////////////////////////////
+// Intrinsics
+//////////////////////////////////////////////////////////////////////////////
+// at
+{
+    using range = range_c<long,10,50>;
+    static_assert(at<range, int_<0>>::value == 10, "");
+    static_assert(at<range, int_<10>>::value == 20, "");
+    static_assert(at<range, int_<40>>::value == 50, "");
+}
+// at_c
+{
+    using range = range_c<long, 10, 50>;
+    static_assert(at_c<range, 0>::value == 10, "");
+    static_assert(at_c<range, 10>::value == 20, "");
+    static_assert(at_c<range, 40>::value == 50, "");
+}
+// back
+{
+    using range1 = range_c<int,0,1>;
+    using range2 = range_c<int,0,10>;
+    using range3 = range_c<int,-10,0>;
+    using types = vector<int, char, float>;
+    static_assert(back<range1>::value == 0, "");
+    static_assert(back<range2>::value == 9, "");
+    static_assert(back<range3>::value == -1, "");
+    static_assert(std::is_same<back<types>::type, float>{}, "");
+}
+// empty
+{
+    using empty_range = range_c<int,0,0>;
+    using types = vector<long,float,double>;
+    static_assert(empty<empty_range>{}, "");
+    static_assert(!empty<types>{}, "");
+}
+// front
+{
+    using types1 = vector<long>;
+    using types2 = vector<int,long>;
+    using types3 = vector<char,int,long>;
+    static_assert(std::is_same<front<types1>::type, long>{}, "");
+    static_assert(std::is_same<front<types2>::type, int>{}, "");
+    static_assert(std::is_same<front<types3>::type, char>{}, "");
+}
+// pop_back
+{
+    using types1 = vector<long>;
+    using types2 = vector<long,int>;
+    using types3 = vector<long,int,char>;
+    using result1 = pop_back<types1>::type;
+    using result2 = pop_back<types2>::type;
+    using result3 = pop_back<types3>::type;
+    static_assert(size<result1>::value == 0, "");
+    static_assert(size<result2>::value == 1, "");
+    static_assert(size<result3>::value == 2, "");
+    static_assert(std::is_same< back<result2>::type, long>{}, "");
+    static_assert(std::is_same< back<result3>::type, int>{}, "");
+}
+// pop_front
+{
+    using types1 = vector<long>;
+    using types2 = vector<int,long>;
+    using types3 = vector<char,int,long>;
+    using result1 = pop_front<types1>::type;
+    using result2 = pop_front<types2>::type;
+    using result3 = pop_front<types3>::type;
+    static_assert(size<result1>::value == 0, "");
+    static_assert(size<result2>::value == 1, "");
+    static_assert(size<result3>::value == 2, "");
+    static_assert(std::is_same<front<result2>::type, long>{}, "");
+    static_assert(std::is_same<front<result3>::type, int>{}, "");
+}
+// push_back
+{
+    using bools = vector_c<bool,false,false,false,true,true,true,false,false>;
+    using message = push_back<bools, false_>::type;
+    static_assert(back<message>::type::value == false, "");
+    static_assert(count_if<message, equal_to<mpl::_1, false_>>{} == 6u, "");
+}
+// push_front
+{
+    using v = vector_c<int,1,2,3,5,8,13,21>;
+    static_assert(size<v>{} == 7u, "");
+    using fibonacci = push_front<v, int_<1>>::type;
+    static_assert(size<fibonacci>{} == 8u, "");
+    static_assert(equal<
+        fibonacci,
+        vector_c<int,1,1,2,3,5,8,13,21>,
+        equal_to<mpl::_, mpl::_>
+    >{}, "");
+}
+// size
+{
+    using empty_list = vector<>;
+    using numbers = vector_c<int,0,1,2,3,4,5>;
+    using more_numbers = range_c<int,0,100>;
+    static_assert(size<empty_list>{} == 0u, "");
+    static_assert(size<numbers>{} == 6u, "");
+    static_assert(size<more_numbers>{} == 100u, "");
+}
+//////////////////////////////////////////////////////////////////////////////
+// Iteration algorithms
+//////////////////////////////////////////////////////////////////////////////
+// fold
+{
+    using types = vector<long,float,short,double,float,long,long double>;
+    using number_of_floats = fold<types, int_<0>,
+        mpl::if_<std::is_floating_point<mpl::_2>,
+            next<mpl::_1>,
+            mpl::_1
+        >
+    >::type;
+    static_assert(number_of_floats{} == 4, "");
+}
+// reverse_fold
+{
+    using numbers = vector_c<int,5,-1,0,-7,-2,0,-5,4>;
+    using negatives = vector_c<int,-1,-7,-2,-5>;
+    using result = reverse_fold<numbers, vector_c<int>,
+        mpl::if_<less<mpl::_2, int_<0>>,
+            push_front<mpl::_1, mpl::_2>,
+            mpl::_1
+        >
+    >::type;
+    static_assert(equal<negatives, result>{}, "");
+}
+//////////////////////////////////////////////////////////////////////////////
+// Query algorithms
+//////////////////////////////////////////////////////////////////////////////
+// find_if
+{
+    using types = vector<char,int,unsigned,long,unsigned long>;
+    using found = find_if<types, std::is_same<mpl::_1, unsigned>>::type;
+    static_assert(std::is_same<found, unsigned>{}, "");
+}
+// find
+{
+    using types = vector<char,int,unsigned,long,unsigned long>;
+    static_assert(std::is_same<find<types, unsigned>::type, unsigned>{}, "");
+}
+// contains
+{
+    using types = vector<char,int,unsigned,long,unsigned long>;
+    static_assert(!contains<types, bool>{}, "");
+}
+// count
+{
+    using types = vector<int,char,long,short,char,short,double,long>;
+    static_assert(count<types, short>{} == 2u, "");
+}
+// count_if
+{
+    using types = vector<int,char,long,short,char,long,double,long>;
+    static_assert(count_if<types, std::is_floating_point<mpl::_>>{} == 1u, "");
+    static_assert(count_if<types, std::is_same<mpl::_, char>>{} == 2u, "");
+    static_assert(count_if<types, std::is_same<mpl::_, void>>{} == 0u, "");
+}
+// min_element (MPL's example is completely broken)
+{
+}
+// max_element (MPL's example is completely broken)
+{
+}
+// equal
+{
+    using s1 = vector<char,int,unsigned,long,unsigned long>;
+    using s2 = vector<char,int,unsigned,long>;
+    static_assert(!equal<s1,s2>{}, "");
+}
+//////////////////////////////////////////////////////////////////////////////
+// Transformaton algorithms
+//////////////////////////////////////////////////////////////////////////////
+// copy
+{
+    using numbers = vector_c<int,10, 11, 12, 13, 14, 15, 16, 17, 18, 19>;
+    using result = copy<range_c<int, 10, 20>>::type;
+    static_assert(size<result>{} == 10u, "");
+    static_assert(equal<result, numbers, mpl::quote2<equal_to>>{}, "");
+}
+// copy_if
+{
+    using result = copy_if<range_c<int, 0, 10>, less<mpl::_1, int_<5>>>::type;
+    static_assert(size<result>{} == 5u, "");
+    static_assert(equal<result, range_c<int, 0, 5>>{}, "");
+}
+// transform
+{
+    using types = vector<char,short,int,long,float,double>;
+    using pointers = vector<char*,short*,int*,long*,float*,double*>;
+    using result = transform<types,std::add_pointer<mpl::_1>>::type;
+    static_assert(equal<result, pointers>{}, "");
+}
+// replace
+{
+    using types = vector<int,float,char,float,float,double>;
+    using expected = vector<int,double,char,double,double,double>;
+    using result = replace< types,float,double >::type;
+    static_assert(equal<result, expected>{}, "");
+}
+// replace_if
+{
+    using numbers = vector_c<int,1,4,5,2,7,5,3,5>;
+    using expected = vector_c<int,1,4,0,2,0,0,3,0>;
+    using result = replace_if<numbers, greater<mpl::_, int_<4>>, int_<0>>::type;
+    static_assert(equal<result, expected, mpl::quote2<equal_to>>{}, "");
+}
+// remove
+{
+    using types = vector<int,float,char,float,float,double>;
+    using result = hpl::remove<types, float>::type;
+    static_assert(equal<result, vector<int, char, double>>{}, "");
+}
+// remove_if
+{
+    using numbers = vector_c<int,1,4,5,2,7,5,3,5>;
+    using result = remove_if<numbers, greater<mpl::_, int_<4> > >::type;
+    static_assert(equal<result, vector_c<int,1,4,2,3>, mpl::quote2<equal_to>>{}, "");
+}
+// unique
+{
+    using types = vector<int,float,float,char,int,int,int,double>;
+    using expected = vector<int,float,char,int,double>;
+    using result = unique<types, std::is_same<mpl::_1, mpl::_2>>::type;
+    static_assert(equal<result, expected>{}, "");
+}
+// partition
+{
+    using r = partition<range_c<int,0,10>, is_odd<mpl::_1>>::type;
+    static_assert(equal<first<r>::type, vector_c<int,1,3,5,7,9>>{}, "");
+    static_assert(equal<second<r>::type, vector_c<int,0,2,4,6,8>>{}, "");
+}
+// sort
+{
+    using numbers = vector_c<int,3,4,0,-5,8,-1,7>;
+    using expected = vector_c<int,-5,-1,0,3,4,7,8>;
+    using result = sort<numbers>::type;
+    static_assert(equal<result, expected, equal_to<mpl::_, mpl::_>>{}, "");
+}
+// reverse
+{
+    using numbers = vector_c<int,9,8,7,6,5,4,3,2,1,0>;
+    using result = reverse<numbers>::type;
+    static_assert(equal<result, range_c<int,0,10>>{}, "");
+}
+//////////////////////////////////////////////////////////////////////////////
+// Runtime algorithms
+//////////////////////////////////////////////////////////////////////////////
+// for_each
+{
+    auto value_printer = [](auto x) {
+        std::cout << x << '\n';
+    };
+    for_each<range_c<int, 0, 10> >(value_printer);
+}
+}
+```
+
 # 参考文档
+
+[参考文档](./hana-reference-zh.md)
 
 # 按字母顺序索引
 
 # 头文件
+
+[头文件](./hana-header-zh.md)
 
 # TODO 列表
 
