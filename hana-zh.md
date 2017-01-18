@@ -112,7 +112,7 @@ fusion::vector<std::string,std::string,std::string> strings=fusion::transform(se
 assert(strings==funsion::make_vector("1"s,"abc"s,"3.4"s));
 ```
 
-如果你觉得操作异构容器很奇怪的话，不妨把它相像成操作`std::tuple`。在`C++03`的世界中，用于进行此计算的库是[Boost.Fusion](http://www.boost.org/doc/libs/release/libs/fusion/doc/html/index.html)，它提供了一些操作异构数据的结构和算法的集合。我们将考察的第四个计算象限的计算是`类型计算`。在这个象限中，我们有类型容器，类型函数(通常称为元函数)和类型算法。在这里，针对任意类型进行操作：容器存储的是类型、元函数接受类型作为参数返回的结果也是类型。
+如果你觉得操作异构容器很奇怪的话，不妨把它想像成操作`std::tuple`。在`C++03`的世界中，用于进行此计算的库是[Boost.Fusion](http://www.boost.org/doc/libs/release/libs/fusion/doc/html/index.html)，它提供了一些操作异构数据的结构和算法的集合。我们将考察的第四个计算象限的计算是`类型计算`。在这个象限中，我们有类型容器，类型函数(通常称为元函数)和类型算法。在这里，针对任意类型进行操作：容器存储的是类型、元函数接受类型作为参数返回的结果也是类型。
 
 ```C++
 template<typename T>
@@ -127,11 +127,11 @@ static_assert(mpl::equal<pointers,
     mpl::vecotr<int const*,char const*,float const*,void const*>>::value,"");
 ```
 
-`类型计算`的领域已经被相当广泛地探索了，并且`C++03`中`类型计算`的事实解决方案是一个名为[Boost.MPL](http://www.boost.org/doc/libs/release/libs/mpl/doc/index.html)的库，它提供类型容器和算法。对于低级类型转换，`C++11`中也可以使用<type_traits>标准头提供的元函数。
+`类型计算`的领域已经被相当广泛地探索了，并且`C++03`中`类型计算`的事实解决方案是一个名为[Boost.MPL](http://www.boost.org/doc/libs/release/libs/mpl/doc/index.html)的库，它提供类型容器和算法。对于低级类型转换，`C++11`中也可以使用`<type_traits>`标准头文件提供的元函数。
 
 ## `Hana`库是干什么的?
 
-以上所有计算都做地很好了，那么，`Hana`库又是干什么的?现在我们已经知道了C++的各种计算类型，回答这个问题可以会很简单了。**Hana的目的是合并第三和第四象限的计算**，具体来说，`Hana`经过长期构建证明，`异构计算`比`类型计算`更强大。我们可以通过等效的`异构计算`来表达任何`类型计算`。这种构造在两个步骤中完成。首先，`Hana`是一个功能齐全的异构算法和容器库，有点像现代化的`Boost.Fusion`。其次，`Hana`提供了一种将任何`类型计算`转换为其等效的`异构计算`的方法。这允许`异构计算`的全部机制被重用于`类型计算`，而没有任何代码重复。当然，这种统一的最大优点是用户可见的。
+以上所有计算都做地很好了，那么，`Hana`库又是干什么的?现在我们已经知道了`C++`的各种计算类型，可以简单地回答这个问题了。**Hana的目的是合并第三和第四象限的计算**，具体来说，`Hana`经过长期构建证明，`异构计算`比`类型计算`更强大。我们可以通过等效的`异构计算`来表达任何`类型计算`。这种构造在两个步骤中完成。首先，`Hana`是一个功能齐全的异构算法和容器库，有点像现代化的`Boost.Fusion`。其次，`Hana`提供了一种将任何`类型计算`转换为其等效的`异构计算`的方法。这就允许`异构计算`的全部机制重用于`类型计算`，而且没有任何代码重复。当然，这种统一的最大优点将是用户可见的。
 
 # 快速入门
 
@@ -154,13 +154,13 @@ struct Cat {std::string name;};
 struct Dog {std::string name;};
 ```
 
-如果你正在阅读这个文档，你可能已经知道`std::tuple`和`std::make_tuple`。`Hana`也提供了自己的`tuple`和`make_tuple`:
+如果你正在阅读本文档，你可能已经知道`std::tuple`和`std::make_tuple`了。`Hana`也提供了自己的`tuple`和`make_tuple`:
 
 ```C++
 auto animals=hana::make_tuple(Fish{"Nemo"},Cat{"Garfield"},Dog{"Snoopy"});
 ```
 
-创建一个元组，除了有可以存储不同类型这个区别外，它就像是一个数组。像这样能够存储不同类型元素的容器称为异构容器。C++标准库只对操作`std::tuple`提供了少量的支持。而`Hana`对自己的`tuple`的操作支持要多一些：
+创建一个元组，除了有可以存储不同类型这个区别外，它就像是一个数组。像这样能够存储不同类型元素的容器称为异构容器。`C++标准库`只对操作`std::tuple`提供了少量的支持。而`Hana`对自己的`tuple`的操作支持要更多一些：
 
 ```C++
 using namespace hana::literals;
@@ -178,7 +178,7 @@ assert(hana::reverse(names)==hana::make_tuple("Snoopy","Garfield","Nemo"));
 
 **注意**
 
-* `1_c`是一个用[C++14用户自定义字面量](http://en.wikipedia.org/wiki/C%2B%2B11#User-defined_literals)创建的[编译时数值](#编译时数值).此自定义字面量位于`boost::hana::literals`名字空间，故此`using`了该名字空间。
+* `1_c`是一个用[C++14用户自定义字面量](http://en.wikipedia.org/wiki/C%2B%2B11#User-defined_literals)创建的[编译期数值](#编译期数值).此自定义字面量位于`boost::hana::literals`名字空间，故此`using`了该名字空间。
 
 注意我们是如何将[C++14泛型lambda](http://en.wikipedia.org/wiki/C%2B%2B14#Generic_lambdas)传递到`transform`的;必须要这样做是因为`lambda`首先用`Fish`来调用的，接着用`Cat`，最后用`Dog`来调用，它们都是类型不同的。`Hana`提供了`C++`标准提供的大多数算法，除了它们工作在元组和异构容器上而不是在`std::tuple`等之上的之外。除了使用异构值之外，`Hana`还使用自然语法执行类型计算，所有这些都在编译期完成，没有任何运行时开销:
 
@@ -578,7 +578,7 @@ auto switch_(Any& a) {
 |static_assert|在`constexpr`条件上断言。强度上大于`BOOST_HANA_CONSTEXPR_CHECK`，因为它要求条件是一个`constexpr`表达式,因此它保证了表达式中使用的算法是`constexpr`友好的。|
 |BOOST_HANA_CONSTANT_CHECK|在一个布尔型`IntegralConstant`条件上断言。这种断言提供了最强的保证形式。因为`IntegralConstant`可以转换为`constexpr`值，即使它本身不是`constexpr`。|
 
-# 编译时数值
+# 编译期数值
 
 本节介绍`IntegralConstant`的重要概念和`Hana`的元编程范式背后的哲学。让我们从一个奇怪的问题开始。什么是`integral_constant`?
 
@@ -940,7 +940,7 @@ auto p=add_pointer(t);
 BOOST_HANA_CONSTANT_CHECK(is_pointer(p));
 ```
 
-注意到我们现在如何使用正常的函数调用语法来执行类型级别的计算了吗? 这类似于使用编译时数值如何使用正常的`C++`操作符来执行编译时计算. 像我们对`integral_constant`所做的一样,我们还可以进一步使用`C++14`变量模板为创建类型提供语法糖：
+注意到我们现在如何使用正常的函数调用语法来执行类型级别的计算了吗? 这类似于使用编译期数值如何使用正常的`C++`操作符来执行编译时计算. 像我们对`integral_constant`所做的一样,我们还可以进一步使用`C++14`变量模板为创建类型提供语法糖：
 
 ``` c++
 template<typename T>
