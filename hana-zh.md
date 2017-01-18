@@ -257,6 +257,7 @@ note: in instantiation of function template specialization
 note: in instantiation of function template specialization
     'main()::(anonymous class)::operator()<Person>' requested here
 serialize(std::cout, john);
+         ^
 ```
 
 不是那么坏，对吧？小例子非常容易展示但没有什么实际意义，让我们来一个真实世界的例子。
@@ -490,7 +491,7 @@ auto switch_(Any& a) {
 **备注**
 
 * 大多数算法同时处理类型和值(参见[类型计算](#类型计算))
-* 算法通常返回一个新容器作为它们的返回结果；不会更改原容器(参见[算法](#算法))
+* 算法通常返回一个新容器作为它们的返回结果；不会更改原容器(参见[算法](#算法的一般性操作))
 * 所有的算法都是`constexpr`函数对象
 
 | 容器           | 说明                                                     |
