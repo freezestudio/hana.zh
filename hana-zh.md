@@ -23,8 +23,8 @@ Boost.Hana 用户手册
 
 **注意**
 
-* 手动安装还将安装一个与[pkg-config](http://www.freedesktop.org/wiki/Software/pkg-config/)一起使用的`hana.pc`文件。
-* 如果您已经安装了`Boost`，请不要再安装`Hana`，因为新安装将覆盖`Boost`附带的安装。
+    >手动安装还将安装一个与[pkg-config](http://www.freedesktop.org/wiki/Software/pkg-config/)一起使用的`hana.pc`文件。
+    >如果您已经安装了`Boost`，请不要再安装`Hana`，因为新安装将覆盖`Boost`附带的安装。
 
 如果在项目中使用`CMake`，可以使用`Hana`提供的[FindHana.cmake](https://github.com/boostorg/hana/blob/master/cmake/FindHana.cmake)模块将Hana设置为外部`CMake`项目.该模块还允许将`Hana`本地安装到该项目，而无需按照上述说明在系统上安装`Hana`。最后，如果你想对`Hana`做出贡献，[README](https://github.com/boostorg/hana/blob/master/README.md#hacking-on-hana)文档中有相关设置你的开发环境的描述。
 
@@ -1924,7 +1924,7 @@ BOOST_HANA_CONSTANT_CHECK(r);
 
 ## 交叉相位(Cross-phase)算法
 
-本节介绍交叉相位计算和算法的概念。 事实上，我们已经在**快速开始**中使用了交叉相位算法，例如使用滤波器，但是我们没有准确解释当时发生了什么。 但在我们介绍交叉相位算法之前，让我们定义交叉相位是什么意思。 这里所指的阶段是程序的编译和执行。 在`C++`等大多数静态类型语言中，编译时和运行时有明显的区别; 这被称为相位差(phase distinction)。 当我们谈到交叉相位计算时，我们是指以某种方式在这些阶段上执行的计算; 即在编译时部分执行并在运行时部分执行。
+本节介绍交叉相位计算和算法的概念。 事实上，我们已经在**快速入门**中使用了交叉相位算法，例如使用滤波器，但是我们没有准确解释当时发生了什么。 但在我们介绍交叉相位算法之前，让我们定义交叉相位是什么意思。 这里所指的阶段是程序的编译和执行。 在`C++`等大多数静态类型语言中，编译时和运行时有明显的区别; 这被称为相位差(phase distinction)。 当我们谈到交叉相位计算时，我们是指以某种方式在这些阶段上执行的计算; 即在编译时部分执行并在运行时部分执行。
 
 就像我们在前面的例子中看到的，一些函数能够返回在编译时可以使用的东西，即使它们是在运行时值上调用的。 例如，让我们考虑应用于非`constexpr`容器的长度函数：
 
