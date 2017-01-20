@@ -23,8 +23,8 @@ Boost.Hana 用户手册
 
 **注意**
 
-    >手动安装还将安装一个与[pkg-config](http://www.freedesktop.org/wiki/Software/pkg-config/)一起使用的`hana.pc`文件。
-    >如果您已经安装了`Boost`，请不要再安装`Hana`，因为新安装将覆盖`Boost`附带的安装。
+>手动安装还将安装一个与[pkg-config](http://www.freedesktop.org/wiki/Software/pkg-config/)一起使用的`hana.pc`文件。
+>如果您已经安装了`Boost`，请不要再安装`Hana`，因为新安装将覆盖`Boost`附带的安装。
 
 如果在项目中使用`CMake`，可以使用`Hana`提供的[FindHana.cmake](https://github.com/boostorg/hana/blob/master/cmake/FindHana.cmake)模块将Hana设置为外部`CMake`项目.该模块还允许将`Hana`本地安装到该项目，而无需按照上述说明在系统上安装`Hana`。最后，如果你想对`Hana`做出贡献，[README](https://github.com/boostorg/hana/blob/master/README.md#hacking-on-hana)文档中有相关设置你的开发环境的描述。
 
@@ -93,7 +93,7 @@ static_assert(facts==std::array<int,4>{{1,2,6,24}},"");
 
 **注意**
 
-* 若使以上代码可执行，需要确保`std::array`的`operator==`操作符标记为`constexpr`，在`C++14`下，这不是问题。
+>若使以上代码可执行，需要确保`std::array`的`operator==`操作符标记为`constexpr`，在`C++14`下，这不是问题。
 
 基本上，`constexpr计算`与`运行时计算`的不同之处在于它足够简单，可以被编译器解析执行。一般来说，任何不对编译器的求值程序过于不友好的函数(像抛出异常或者分配内存等)，都可以标记为`constexpr`，而无需作出修改。`constexpr计算`与`运行时计算`类似，除了`constexpr计算`更受限制，并需要获得编译时执行的能力之外。不幸的是，没有常用于`constexpr计算`的工具集，即没有广泛采用的用于`constexpr`编程的标准库。也许，对`constexpr`编程感兴趣的人可以去了解一下[Sprout](https://github.com/bolero-MURAKAMI/Sprout)库。
 
@@ -178,7 +178,7 @@ assert(hana::reverse(names)==hana::make_tuple("Snoopy","Garfield","Nemo"));
 
 **注意**
 
-* `1_c`是一个用[C++14用户自定义字面量](http://en.wikipedia.org/wiki/C%2B%2B11#User-defined_literals)创建的[编译期数值](#编译期数值).此自定义字面量位于`boost::hana::literals`名字空间，故此`using`了该名字空间。
+>`1_c`是一个用[C++14用户自定义字面量](http://en.wikipedia.org/wiki/C%2B%2B11#User-defined_literals)创建的[编译期数值](#编译期数值).此自定义字面量位于`boost::hana::literals`名字空间，故此`using`了该名字空间。
 
 注意我们是如何将[C++14泛型lambda](http://en.wikipedia.org/wiki/C%2B%2B14#Generic_lambdas)传递到`transform`的;必须要这样做是因为`lambda`首先用`Fish`来调用的，接着用`Cat`，最后用`Dog`来调用，它们都是类型不同的。`Hana`提供了`C++`标准提供的大多数算法，除了它们工作在元组和异构容器上而不是在`std::tuple`等之上的之外。除了使用异构值之外，`Hana`还使用自然语法执行类型计算，所有这些都在编译期完成，没有任何运行时开销:
 
@@ -194,7 +194,7 @@ static_assert(no_pointers==hana::make_tuple(hana::type_c<Cat&>,hana::type_c<Dog>
 
 **注意**
 
-* `type_c<...>`不是一个类型！它是一个[C++14变量模板](http://en.wikipedia.org/wiki/C%2B%2B14#Variable_templates)生成的`Hana`类型对象。更多详情参见[类型计算](#类型计算)。
+>`type_c<...>`不是一个类型！它是一个[C++14变量模板](http://en.wikipedia.org/wiki/C%2B%2B14#Variable_templates)生成的`Hana`类型对象。更多详情参见[类型计算](#类型计算)。
 
 除了用于异构和编译时序列外，`Hana`还提供一些特性使您的元编程恶梦成为过去。举例来说，你可以简单使用一行代码来检查结构的成员是否存在，而不再依赖于笨拙的`SFINAE`：
 
@@ -279,7 +279,7 @@ assert(r=="char: x"s);
 
 **注意**
 
-* 此文档中，我们将经常在字符串字面量上使用`s`后缀来创建`std::string`(而没有语法上的开销)，这是个[C++14用户自定义字面量](http://en.wikipedia.org/wiki/C%2B%2B11#User-defined_literals)的标准定义。
+>此文档中，我们将经常在字符串字面量上使用`s`后缀来创建`std::string`(而没有语法上的开销)，这是个[C++14用户自定义字面量](http://en.wikipedia.org/wiki/C%2B%2B11#User-defined_literals)的标准定义。
 
 
 因为`any`中保存有一个`char`，因此第二个函数被调用。如果`any`保存的是`int`，第一个函数将被调用。当`any`保存的动态类型不匹配任何一个`case`时，`default_`函数会被调用。最后，`switch`返回值为与`any`动态类型关联的函数的返回值。返回值的类型被推导为所有关联函数的返回类型的公共类型：
@@ -596,7 +596,7 @@ struct integral_constant{
 
 **注意**
 
-* 如果你觉得这些很新奇，你可能需要看看`std::integral_constant`[文档](http://en.cppreference.com/w/cpp/types/integral_constant)
+>如果你觉得这些很新奇，你可能需要看看`std::integral_constant`[文档](http://en.cppreference.com/w/cpp/types/integral_constant)
 
 一个有效的回答是，`integral_constant`表示数值的类型编码,或者更一般地表示为任何整型对象。比如，我们可以使用模板别名很容易地在该表示中的数值上定义后继函数：
 
@@ -784,9 +784,9 @@ auto hello=hana::if_(hana::false_c,123,"hello");
 
 **注意**
 
-* `hana::true_c`和`hana::false_c`为编译期`IntegralConstant`布尔值.分别表示编译期真值和假值.
+>`hana::true_c`和`hana::false_c`为编译期`IntegralConstant`布尔值。分别表示编译期真值和假值。
 
-`one_two_three`等于`123`,`hello`等于`"hello"`.从另一个角度看,`if_`很像`?:`运算符,除了`:`分割符两边可以有不同类型外:
+`one_two_three`等于`123`,`hello`等于`"hello"`。从另一个角度看,`if_`很像`?:`运算符,除了`:`分割符两边可以有不同类型外:
 
 ``` C++
 //这两条语句都失败了,因为分支有不兼容的类型.
@@ -812,7 +812,7 @@ std::unique_ptr<T> make_unique(Args&&... args){
 
 **注意**
 
-* `if_`的分支是`lambda`,因此，它们从不同的途径构造了`make_unique`函数.在这些分支中出现的变量必须被`lambdas`捕获或作为参数传递给它们，因此它们受到捕获或传递的方式（通过值，引用等）的影响。
+>`if_`的分支是`lambda`,因此，它们从不同的途径构造了`make_unique`函数.在这些分支中出现的变量必须被`lambdas`捕获或作为参数传递给它们，因此它们受到捕获或传递的方式（通过值，引用等）的影响。
 
 由于这种将分支表达为`lambda`类型然后调用它们的模式是非常常见的，`Hana`提供了一个`eval_if`函数，其目的是使编译时分支更容易。 `eval_if`来自于一个事实，在`lambda`中，可以接收输入数据作为参数或从上下文中捕获它。 然而，为了模拟语言级`if`语句，隐含地从封闭范围捕获变量通常更自然. 因此，我们更喜欢这样写:
 
@@ -850,9 +850,9 @@ std::unique_ptr<T> make_unique(Args&&... args) {
 }
 ```
 
-这里，分支的主体采用约定的称为`_`的附加参数.这个参数将由`hana::eval_if`提供给所选择的分支. 然后，我们使用`_`作为我们想要在每个分支的主体内依赖的变量的函数.使用`_`会发生什么呢?`_`是一个直接原样返回其参数的函数.但是，编译器在`lambda`实际被调用之前不可能知道它，因此它不能知道`_(args)`的类型.这样一来,会阻止编译器执行语义分析，并且不会发生编译错误.另外，由于`_(x)`保证等于`x`，我们知道我们实际上没有通过使用这个技巧改变分支的语义.
+这里，分支的主体采用约定的称为`_`的附加参数。这个参数将由`hana::eval_if`提供给所选择的分支。然后，我们使用`_`作为我们想要在每个分支的主体内依赖的变量的函数。使用`_`会发生什么呢?`_`是一个直接原样返回其参数的函数。但是，编译器在`lambda`实际被调用之前不可能知道它，因此它不能知道`_(args)`的类型。这样一来,会阻止编译器执行语义分析，并且不会发生编译错误。另外，由于`_(x)`保证等于`x`，我们知道我们实际上没有通过使用这个技巧改变分支的语义。
 
-虽然使用这个技巧可能看起来很麻烦，但当处理分支中的许多变量时，它可能非常有用。此外，不需要用`_`来包装所有变量; 只有那些包装类型检查必须延迟的表达式中涉及的变量才需要使用它.在`Hana`中还有一些需要了解的编译时分支，参见`hana::eval_if`,`hana::if_`和`hana::lazy`来深入了解它们.
+虽然使用这个技巧可能看起来很麻烦，但当处理分支中的许多变量时，它可能非常有用。此外，不需要用`_`来包装所有变量; 只有那些包装类型检查必须延迟的表达式中涉及的变量才需要使用它。在`Hana`中还有一些需要了解的编译时分支，参见`hana::eval_if`,`hana::if_`和`hana::lazy`来深入了解它们。
 
 ##为什么停到这里了?##
 
@@ -865,7 +865,7 @@ int main() {
 }
 ```
 
-以上代码在编译会展开为调用`10`次`f`.相当于如下操作:
+以上代码在编译会展开为调用`10`次`f`。相当于如下操作:
 
 ``` C++
 f();f();...f();//10 times
@@ -873,16 +873,16 @@ f();f();...f();//10 times
 
 **注意**
 
-* 通常[要小心](https://youtu.be/qkzaZumt_uk?t=4478)手动展开循环或手动执行其他此类优化.在大多数情况下,你的编译器在优化时可能比你更好.
+>通常[要小心](https://youtu.be/qkzaZumt_uk?t=4478)手动展开循环或手动执行其他此类优化。在大多数情况下,你的编译器在优化时可能比你更好。
 
-`IntegralConstant`的另一个很好的用途是定义更好的运算符来索引异构序列.`std::tuple`必须使用`std::get`访问,`hana::tuple`可以使用用于标准库容器的熟悉的`operator []`来访问：
+`IntegralConstant`的另一个很好的用途是定义更好的运算符来索引异构序列。`std::tuple`必须使用`std::get`访问,`hana::tuple`可以使用用于标准库容器的熟悉的`operator []`来访问：
 
 ``` C++
 auto values=hana::make_tuple(1,'x',3.4f);
 char x=values[1_c];
 ```
 
-这是怎样让工作变得简单的呢. 基本上,`hana::tuple`定义一个使用一个整数常量的运算符`[]`而不是一个通常常的整数,类似于:
+这是怎样让工作变得简单的呢。 基本上，`hana::tuple`定义一个使用一个整数常量的运算符`[]`而不是一个通常常的整数，类似于:
 
 ``` C++
 template<typename N>
@@ -891,17 +891,17 @@ constexpr decltype(auto) operator[](N const&){
 }
 ```
 
-本节,`IntegralConstant`部分结束了,本节介绍 了`Hana`的新的元编程方法.如果你喜欢你所看到的.本教程的其余部分应该会感到更加熟悉.
+本节，`IntegralConstant`部分结束了，本节介绍 了`Hana`的新的元编程方法。如果你喜欢你所看到的。本教程的其余部分应该会感到更加熟悉。
 
 # 类型计算
 
-在这一点上,如果你有兴趣像`MPL`一样进行类型计算,你可能会想知道`Hana`如何帮助你.不用担心,`Hana`提供了一种通过将类型表示为值来执行具有大量表达性的类型计算的方法,就像我们将编译时数字表示为值一样. 这是一种全新的接近元编程的方法,如果你想熟练使用Hana,你应该尝试将你的旧`MPL`习惯放在一边.
+在这一点上，如果你有兴趣像`MPL`一样进行类型计算，你可能会想知道`Hana`如何帮助你。不用担心，`Hana`提供了一种通过将类型表示为值来执行具有大量表达性的类型计算的方法，就像我们将编译时数字表示为值一样。 这是一种全新的接近元编程的方法，如果你想熟练使用`Hana`，你应该尝试将你的旧`MPL`习惯放在一边。
 
-但是,请注意,现代`C++`的功能,如[自动推导返回类型](http://en.wikipedia.org/wiki/C%2B%2B14#Function_return_type_deduction),在许多情况下不需要类型计算. 因此,在考虑做一个类型计算之前,你应该问自己是否有一个更简单的方法来实现你想要实现的.在大多数情况下,答案是肯定的. 然而,当答案是否定的时候,`Hana`将为你提供核力量设施来做需要做的事情.
+但是，请注意，现代`C++`的功能，如[自动推导返回类型](http://en.wikipedia.org/wiki/C%2B%2B14#Function_return_type_deduction)，在许多情况下不需要类型计算。 因此，在考虑做一个类型计算之前，你应该问自己是否有一个更简单的方法来实现你想要实现的。在大多数情况下，答案是肯定的。 然而，当答案是否定的时候，`Hana`将为你提供核力量设施来做需要做的事情。
 
 ## 类型作为对象
 
-`Hana`中类型计算的关键点基本上与编译时计算的方法相同.基本想法是将编译时实体表示为对象,将它们包装到某种容器中. 对于`IntegralConstant`,编译时实体是整型的常量表达式,我们使用的包装器是`integral_constant`. 在本节中，编译时实体将是类型,我们将使用的包装器称为`type`,就像我们对`IntegralConstant`做的一样,让我们开始定义一个可以用来表示类型的虚拟模板：
+`Hana`中类型计算的关键点基本上与编译时计算的方法相同。基本想法是将编译时实体表示为对象，将它们包装到某种容器中。 对于`IntegralConstant`，编译时实体是整型的常量表达式，我们使用的包装器是`integral_constant`。在本节中，编译时实体将是类型，我们将使用的包装器称为`type`，就像我们对`IntegralConstant`做的一样，让我们开始定义一个可以用来表示类型的虚拟模板：
 
 ``` C++
 template<typename T>
@@ -915,7 +915,7 @@ basic_type<char> Char{};
 
 **注意**
 
-* 在这里我们使用`basic_type`名字，是因为我们仅构建一个`hana`提供版本的最简版本。
+>在这里我们使用`basic_type`名字，是因为我们仅构建一个`hana`提供版本的最简版本。
 
 虽然这看起来完全没用，但实际上足以开始编写看起来像函数的元函数了。 让我们考虑以下`std::add_pointer`和`std::is_pointer`的替代实现：
 
@@ -933,7 +933,7 @@ constexpr auto is_pointer(basic_type<T*> const&)
 { return hana::bool_c<true>; }
 ```
 
-我们刚刚编写了看起来像函数的元函数，就像我们在上一节中将编译时算术元函数编写为异构`C++`操作符一样. 以下是我们如何使用它们：
+我们刚刚编写了看起来像函数的元函数，就像我们在上一节中将编译时算术元函数编写为异构`C++`操作符一样。 以下是我们如何使用它们：
 
 ``` C++
 basic_type<int> t{};
@@ -941,7 +941,7 @@ auto p=add_pointer(t);
 BOOST_HANA_CONSTANT_CHECK(is_pointer(p));
 ```
 
-注意到我们现在如何使用正常的函数调用语法来执行类型级别的计算了吗? 这类似于使用编译期数值如何使用正常的`C++`操作符来执行编译时计算. 像我们对`integral_constant`所做的一样,我们还可以进一步使用`C++14`变量模板为创建类型提供语法糖：
+注意到我们现在如何使用正常的函数调用语法来执行类型级别的计算了吗? 这类似于使用编译期数值如何使用正常的`C++`操作符来执行编译时计算。 像我们对`integral_constant`所做的一样,我们还可以进一步使用`C++14`变量模板为创建类型提供语法糖：
 
 ``` c++
 template<typename T>
@@ -954,11 +954,11 @@ BOOST_HANA_CONSTANT_CHECK(is_pointer(p));
 
 **注意**
 
-* 这不是`hana::type_c`变量模板完整实现，因为有些细微不同之处;仅用于解释的目的.把它仍到一边,参考`hana::type`的实现，以确切知道您可以从`hana::type_c<...>`中获得什么.
+>这不是`hana::type_c`变量模板完整实现，因为有些细微不同之处;仅用于解释的目的。把它仍到一边，参考`hana::type`的实现，以确切知道您可以从`hana::type_c<...>`中获得什么。
 
 ## 优势
 
-这样做有什么好处呢？因为`type_c<...>`是一个对象,我们可以将它存储到像`tuple`这样的异构容器中,我们可以移动它,也可以将它传递(或者返回)到函数中,而且我们可以用在任何需要对象的地方:
+这样做有什么好处呢？因为`type_c<...>`是一个对象，我们可以将它存储到像`tuple`这样的异构容器中，我们可以移动它，也可以将它传递(或者返回)到函数中，而且我们可以用在任何需要对象的地方:
 
 ``` C++
 auto types=hana::make_tuple(hana::type_c<int*>,hana::type_c<char&>,hana::type_c<void>);
@@ -969,9 +969,9 @@ BOOST_HANA_CONSTANT_CHECK(char_ref==hana::type_c<char&>);
 
 **注意**
 
-* 当需要多个类型时,编写`make_tuple(type_c<T>...)`可能会觉得比较繁琐，为此，`Hana`提供了变量模板`tuple_t<T...>`，它是`make_tuple(type_c<T>...)`的语法糖。
+>当需要多个类型时，编写`make_tuple(type_c<T>...)`可能会觉得比较繁琐，为此，`Hana`提供了变量模板`tuple_t<T...>`，它是`make_tuple(type_c<T>...)`的语法糖。
 
-另外，请注意，由于上面的元组实际上只是一个正常的异构序列，就像`ints`的元组上一样，我们可以对该序列应用异构算法。此外，由于我们只是操作对象，我们现在可以使用完整的语言支持，而不仅仅是在类型级别提供的小子集。例如,考虑删除不是引用的所有类型或来自类型序列的指针的任务.如果用`MPL`，我们必须使用占位符表达式来表达谓词，看起来较为笨拙：
+另外，请注意，由于上面的元组实际上只是一个正常的异构序列，就像`ints`的元组上一样，我们可以对该序列应用异构算法。此外，由于我们只是操作对象，我们现在可以使用完整的语言支持，而不仅仅是在类型级别提供的小子集。例如，考虑删除不是引用的所有类型或来自类型序列的指针的任务。如果用`MPL`，我们必须使用占位符表达式来表达谓词，看起来较为笨拙：
 
 ```C++
 using types = mpl::vector<int, char&, void*>;
@@ -982,7 +982,7 @@ using ts = mpl::copy_if<types, mpl::or_<std::is_pointer<mpl::_1>,
 static_assert(mpl::equal<ts, mpl::vector<char&, void*>>::value, "");
 ```
 
-现在,由于我们在操作对象,我们可以使用完整的语言支持,并使用一个通用的`lambda`,这样的代码有更好的可读性：
+现在，由于我们在操作对象，我们可以使用完整的语言支持，并使用一个通用的`lambda`，这样的代码有更好的可读性：
 
 ```C++
 auto types = hana::tuple_t<int*, char&, void>;
@@ -992,7 +992,7 @@ auto ts = hana::filter(types, [](auto t) {
 BOOST_HANA_CONSTANT_CHECK(ts == hana::tuple_t<int*, char&>);
 ```
 
-由于`Hana`对所有异构容器进行统一处理,这种将类型表示为值的方法也具有以下优点：异构计算和类型计算现在只需要单个库即可. 事实上，虽然我们通常需要两个不同的库来执行几乎相同的任务，但我们现在想要一个单独的库来完成它们。再次,考虑使用谓词过滤序列的任务.如果使用`MPL`和`Fusion`，我们必须这样做：
+由于`Hana`对所有异构容器进行统一处理，这种将类型表示为值的方法也具有以下优点：异构计算和类型计算现在只需要单个库即可。事实上，虽然我们通常需要两个不同的库来执行几乎相同的任务，但我们现在想要一个单独的库来完成它们。再次，考虑使用谓词过滤序列的任务.如果使用`MPL`和`Fusion`，我们必须这样做：
 
 ```C++
 // types (MPL)
@@ -1004,7 +1004,7 @@ auto values = fusion::make_vector(1, 'c', nullptr, 3.5);
 auto vs = fusion::filter_if<std::is_integral<mpl::_1>>(values);
 ```
 
-但用`Hana`,只要一个库就行了.注意看我们怎么使用相似的算法和容器的，并且只调整谓词，以便它可以对值进行操作：
+但用`Hana`，只要一个库就行了。注意看我们怎么使用相似的算法和容器的，并且只调整谓词，以便它可以对值进行操作：
 
 ```C++
 // types
@@ -1067,7 +1067,7 @@ struct basic_type {
 
 **注意**
 
-* 这相当于使`basic_type`是`MPL`意义上的元函数。
+>这相当于使`basic_type`是`MPL`意义上的元函数。
 
 这样，我们可以使用`decltype`来容易地访问由`type_c<...>`对象表示的实际`C++`类型：
 
@@ -1236,7 +1236,7 @@ BOOST_HANA_CONSTANT_CHECK(extent(hana::type_c<char[1][2]>, hana::int_c<1>) == ha
 
 **注意**
 
-* 当从头文件`<type_traits>`中使用`type traits`时，不要忘记包含文件：`std::integral_constrant`(`<boost/hana/ext/std/integral_constant.hpp>`)
+>当从头文件`<type_traits>`中使用`type traits`时，不要忘记包含文件：`std::integral_constrant`(`<boost/hana/ext/std/integral_constant.hpp>`)
 
 然而，在实践中，这不应该是一个问题，因为绝大多数类型计算可以很容易地提升。 最后，由于`<type_traits>`头文件提供的`metafunctions`使用频繁，`Hana`均为它们提供了对应的提升的版本。 那些解析后的`traits`在`hana::traits`命名空间，他们在`<boost/hana/traits.hpp>`头文件中：
 
@@ -1284,7 +1284,7 @@ std::string optionalToString(T const& obj) {
 
 **注意**
 
-* 虽然这种技术的大多数用例将通过在未来修订标准中的[concepts lite](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2013/n3580.pdf)概念来解决，但是仍然存在这样的情况，其中快速、脏检查比创建完全概括的概念更方便。
+>虽然这种技术的大多数用例将通过在未来修订标准中的[concepts lite](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2013/n3580.pdf)概念来解决，但是仍然存在这样的情况，其中快速、脏检查比创建完全概括的概念更方便。
 
 我们如何以通用方式实现对`obj.toString()`的有效性的检查(因此它可以在其他函数中重用)? 通常，我们会想到写一些基于`SFINAE`的检查：
 
@@ -1313,7 +1313,7 @@ std::string optionalToString(T const& obj) {
 
 **注意**
 
-* 当然，这个实现不会真正工作，因为`if`语句的两个分支都将被编译。 如果`obj`没有`toString`方法，`if`分支的编译将失败。 我们将在稍后解决这个问题。
+>当然，这个实现不会真正工作，因为`if`语句的两个分支都将被编译。 如果`obj`没有`toString`方法，`if`分支的编译将失败。 我们将在稍后解决这个问题。
 
 代替上面的`SFINAE`技巧，`Hana`提供了一个`is_valid`函数，可以与[C++14通用lambdas](http://en.wikipedia.org/wiki/C%2B%2B14#Generic_lambdas)组合获得一个更干净的实现：
 
@@ -1348,7 +1348,7 @@ auto optionalToString(T const& obj)
 
 **注意**
 
-* 我们使用这样一个事实，`has_toString`返回一个`IntegralConstant`，因而`decltype(...)::value`是一个常量表达式。 出于某种原因，`has_toString（obj）`不被认为是一个常量表达式，即使我认为它应该是，因为我们从未读过`obj`（参见[高级constexpr](#高级constexpr)）。
+>我们使用这样一个事实，`has_toString`返回一个`IntegralConstant`，因而`decltype(...)::value`是一个常量表达式。 出于某种原因，`has_toString（obj）`不被认为是一个常量表达式，即使我认为它应该是，因为我们从未读过`obj`（参见[高级constexpr](#高级constexpr)）。
 
 虽然这个实现是完全有效的，但它仍然相当繁琐，因为它需要编写两个不同的函数，并通过使用`std::enable_if`显式地绕过了`SFINAE`的圈子。 然而，你可能还记得编译时分支那一节，`Hana`提供了一个`if_`函数，可以用来模拟`static_if`的功能。 这里我们用`hana::if_`来编写`optionalToString`：
 
@@ -1532,7 +1532,7 @@ BOOST_HANA_RUNTIME_CHECK(age == 30);
 
 **注意**
 
-* `_s`用户定义的文本创建一个编译时`hana::string`。 它位于`boost::hana::literals`命名空间中。 请注意，它不是标准的一部分，但受`Clang`和`GCC`支持。 如果要保持100%的标准，可以使用`BOOST_HANA_STRING`宏。
+>`_s`用户定义的文本创建一个编译时`hana::string`。 它位于`boost::hana::literals`命名空间中。 请注意，它不是标准的一部分，但受`Clang`和`GCC`支持。 如果要保持100%的标准，可以使用`BOOST_HANA_STRING`宏。
 
 `Struct`和`hana::map`之间的主要区别在于`hana::map`可以修改映射（可以添加和删除键），而`Struct`是不可变的。 但是，您可以轻松地将一个`Struct`转换为与`<map_tag>`关联的`hana::map`，然后您可以以更灵活的方式操作它。
 
@@ -1560,7 +1560,7 @@ BOOST_HANA_ADAPT_STRUCT(not_my_namespace::Person, name, age);
 
 **注意**
 
-* 必须在全局范围使用`BOOST_HANA_ADAPT_STRUCT`宏。
+>必须在全局范围使用`BOOST_HANA_ADAPT_STRUCT`宏。
 
 该效果与`BOOST_HANA_DEFINE_STRUCT`宏完全相同，除非您不需要修改要修改的类型，这有时是有用的。 最后，还可以使用`BOOST_HANA_ADAPT_ADT`宏定义自定义访问器：
 
@@ -1687,7 +1687,7 @@ constexpr auto r = hana::make<hana::range_tag>(hana::int_c<3>, hana::int_c<10>);
 static_assert(r == hana::make_range(hana::int_c<3>, hana::int_c<10>), "");
 ```
 
-* 带有尾部`_tag`的这些类型是表示异类容器族（`hana::tuple`，`hana::map`等）的虚拟类型。 有关`tag`部分请参见[`Hana`核心](#Hana核心)。
+>带有尾部`_tag`的这些类型是表示异类容器族（`hana::tuple`，`hana::map`等）的虚拟类型。 有关`tag`部分请参见[`Hana`核心](#Hana核心)。
 
 为方便起见，每当`Hana`的组件提供`make<xxx_tag>`函数时，它还提供`make_xxx`快捷方式以少打一些字符。 此外，在该示例中可以提出的一个有趣的地方是`r`是`constexpr`的事实。 通常，每当一个容器只用常量表达式初始化（这是`r`的情况），该容器可以被标记为`constexpr`。
 
@@ -1880,7 +1880,7 @@ BOOST_HANA_CONSTANT_CHECK(r);
 
 **注意**
 
-* 为使这些代码可工作，必须包含在`<boost/hana/ext/std/integral_constant.hpp>`中的`std::integr_constant`外部适配器。
+>为使这些代码可工作，必须包含在`<boost/hana/ext/std/integral_constant.hpp>`中的`std::integr_constant`外部适配器。
 
   根据前面的展开部分，这个算法应该展开如下：
 
@@ -1912,7 +1912,7 @@ BOOST_HANA_CONSTANT_CHECK(r);
 
 **注意**
 
-* 正如你将能够从下一节交叉相位计算中推断出的，`any_of`的实现实际上必须比这更通用。 然而，这个[Lie-to-children](http://en.wikipedia.org/wiki/Lie-to-children)仅出于教育目的。
+>正如你将能够从下一节交叉相位计算中推断出的，`any_of`的实现实际上必须比这更通用。 然而，这个[Lie-to-children](http://en.wikipedia.org/wiki/Lie-to-children)仅出于教育目的。
 
 正如你所看到的，谓词永远不会被执行; 仅使用其对特定对象的结果类型。 关于执行的顺序，考虑`transform`算法，其被指定（对于元组）为：
 
@@ -1972,7 +1972,7 @@ BOOST_HANA_CONSTANT_CHECK(any_cat);
 
 **注意**
 
-* 为使这些代码工作，必须包含在`<boost/hana/ext/std/integral_constant.hpp>`中的`std::integral_constant`的外部适配器。
+>为使这些代码工作，必须包含在`<boost/hana/ext/std/integral_constant.hpp>`中的`std::integral_constant`的外部适配器。
 
 首先，由于谓词仅查询关于元组的每个元素的类型的信息，所以很清楚的是，其结果可以在编译时知道。 由于元组中元素的数量在编译时也是已知的，所以算法的总体结果理论上可以在编译时知道。 更确切地说，谓词返回的是一个经`std::is_same<...>`初始化的值，它继承自`std::integral_constant`。 `Hana`识别这些对象，并且以这样的方式编写算法，使得它能将谓词保留在**compile-timeness**。 最后，`any_of`返回一个`IntegralConstant`保存算法的结果，我们以一种聪明的方式使用编译器的类型推导，使它看起来容易。 因此，它相当于（但是你需要已经知道算法的结果！）：
 
@@ -2006,7 +2006,7 @@ auto mammals = hana::filter(animals, [](auto animal) {
 
 **警告**
 
-* `Hana`的算法是`constexpr`函数对象，而不是模板函数。 这就允许将它们传递到更高阶的算法，这是非常有用的。 然而，由于那些函数对象被定义在头文件中的命名空间中，这使得每个翻译单元看到不同的算法对象。 因此，不保证算法函数对象的地址在翻译单元之间是唯一的，如果依赖于这样的地址，这可能导致违反ODR(One Definition Rule)。 所以，简而言之，不要依赖Hana提供的任何全局对象的地址的唯一性，这在一般情况下没有意义，因为这样的对象是`constexpr`。 有关详细信息，请参阅[问题#76](https://github.com/boostorg/hana/issues/76)。
+>`Hana`的算法是`constexpr`函数对象，而不是模板函数。 这就允许将它们传递到更高阶的算法，这是非常有用的。 然而，由于那些函数对象被定义在头文件中的命名空间中，这使得每个翻译单元看到不同的算法对象。 因此，不保证算法函数对象的地址在翻译单元之间是唯一的，如果依赖于这样的地址，这可能导致违反ODR(One Definition Rule)。 所以，简而言之，不要依赖Hana提供的任何全局对象的地址的唯一性，这在一般情况下没有意义，因为这样的对象是`constexpr`。 有关详细信息，请参阅[问题#76](https://github.com/boostorg/hana/issues/76)。
 
 # 性能注意事项
 
@@ -2014,11 +2014,11 @@ auto mammals = hana::filter(animals, [](auto animal) {
 
 **注意**
 
-* 当我们推送到存储库时，本节中提供的基准会自动更新。 如果您发现不能承受此处声明的结果，请开一个[GitHub `issue`](https://github.com/boostorg/hana/issues); 它可能是一个性能回归。
+>当我们推送到存储库时，本节中提供的基准会自动更新。 如果您发现不能承受此处声明的结果，请开一个[GitHub `issue`](https://github.com/boostorg/hana/issues); 它可能是一个性能回归。
 
 **警告**
 
-* 在写这篇文章的时候，并不是所有的`Hana`容器都经过了优化。 实施`Hana`是一个足够大的挑战，容器最初写成天真的，现在正在严格优化的过程。 特别是，关联容器（`hana::map`和`hana::set`）由于其朴素的实现而具有相当差的编译时行为，并且它们的运行时行为在某些情况下也似乎是有问题的。 改进这种情况是在TODO列表中。
+>在写这篇文章的时候，并不是所有的`Hana`容器都经过了优化。 实施`Hana`是一个足够大的挑战，容器最初写成天真的，现在正在严格优化的过程。 特别是，关联容器（`hana::map`和`hana::set`）由于其朴素的实现而具有相当差的编译时行为，并且它们的运行时行为在某些情况下也似乎是有问题的。 改进这种情况是在TODO列表中。
 
 ## 编译期性能
 
@@ -2026,7 +2026,7 @@ auto mammals = hana::filter(animals, [](auto animal) {
 
 **注意**
 
-* 虽然`Hana`比前`C++11`元编程库具有更好的编译时间，但是现代库仅支持类型级计算（例如`Brigand`）可以以通用性为代价提供更好的编译时间。 事实上，无论我们如何努力减轻它，`Hana`的操纵运行时价值的能力都是以编译时的成本。 如果你想使用`Hana`进行密集型类型计算，你应该进行基准测试，看看它是否适合你。
+>虽然`Hana`比前`C++11`元编程库具有更好的编译时间，但是现代库仅支持类型级计算（例如`Brigand`）可以以通用性为代价提供更好的编译时间。 事实上，无论我们如何努力减轻它，`Hana`的操纵运行时价值的能力都是以编译时的成本。 如果你想使用`Hana`进行密集型类型计算，你应该进行基准测试，看看它是否适合你。
 
 在我们潜水之前，让我快速评论一下用于衡量`Hana`编译时性能的方法。先前的元编程库通过查看编译器必须执行的实例化的数量来测量它们的元算法和元序列的编译时复杂度。虽然容易理解，这种测量编译时复杂性的方法实际上不给我们有关编译时间的很多信息，这是我们有兴趣在一天结束时最小化。基本上，原因是模板元编程是这样一个扭曲的计算模型，很难找到一个标准的方法来衡量算法的性能。因此，我们不是呈现无意义的复杂性分析，而是对每个支持的编译器上的所有内容进行基准测试，并选择该编译器上最好的实现。还要注意，我们在这里提供的基准是相当精确的。事实上，即使我们不采取多个测量，并采取他们的意思或类似的减少不安，基准是非常稳定的，当他们被再生，这表明一个相当好的精度。现在，让我们潜水。
 
@@ -2042,7 +2042,7 @@ auto mammals = hana::filter(animals, [](auto animal) {
 
 **注意**
 
-* 您可以通过选择要放大的区域来放大图表。 此外，您可以通过在右侧的图例中单击来隐藏一系列点。
+>您可以通过选择要放大的区域来放大图表。 此外，您可以通过在右侧的图例中单击来隐藏一系列点。
 
 基准方法是始终以最有效的方式创建序列。对于`Hana`和`std::tuple`，这只是意味着使用适当的`make_tuple`函数。然而，对于`MPL`，这意味着创建一个大小为`20`的`mpl::vectorN`，然后使用`mpl::push_back`创建更大的向量。我们使用类似的技术融合序列。这样做的原因是`Fusion`和`MPL`序列具有固定的大小限制，并且已经发现这里使用的技术是产生更长序列的最快方式。
 
@@ -2060,7 +2060,7 @@ auto mammals = hana::filter(animals, [](auto animal) {
 
 **注意**
 
-* 我们正在考虑给`Hana`添加惰性的意见。 如果此功能对您很重要，请通过评论此问题告诉我们。
+>我们正在考虑给`Hana`添加惰性的意见。 如果此功能对您很重要，请通过评论此问题告诉我们。
 
 第二类重要的算法是折叠。 折叠可以用于实现许多其他算法，如`count_if`，`minimum`等。 因此，折叠算法的良好编译时性能确保这些派生算法的良好的编译时性能，这就是为什么我们只在这里展示折叠。 还要注意，所有非`monadic`折叠变体在编译时间方面有些等同，因此我们只呈现左折叠。 下图显示了将`fold_left`应用于`n`个元素的序列的编译时性能。 `x`轴表示序列中元素的数量，`y`轴表示编译时间（以秒为单位）。 用于折叠的函数是一个不起作用的虚拟函数。 在实际代码中，您可能会使用非平凡操作进行折叠，因此曲线会比这更糟糕。 然而，这些是微基准，因此它们只显示算法本身的性能。
 
@@ -2080,7 +2080,7 @@ auto mammals = hana::filter(animals, [](auto animal) {
 
 **注意**
 
-* 就像编译时的性能一样，我们迫使对一些通常是懒惰的融合算法进行评估。 同样，取决于计算的复杂性，惰性算法可能导致产生实质上不同的代码或者使用不同的设计，或多或少。 当您查看这些运行时基准时，记住这一点。 如果性能对于您的应用程序是绝对关键的，您应该在从Fusion切换到Hana之前和之后进行配置。 让我们知道`Hana`是否更糟糕; 我们会解决它！
+>就像编译时的性能一样，我们迫使对一些通常是懒惰的fusion算法进行评估。 同样，取决于计算的复杂性，惰性算法可能导致产生实质上不同的代码或者使用不同的设计，或多或少。 当您查看这些运行时基准时，记住这一点。 如果性能对于您的应用程序是绝对关键的，您应该在从Fusion切换到Hana之前和之后进行配置。 让我们知道`Hana`是否更糟糕; 我们会解决它！
 
 有几个不同的方面，我们将要基准。首先，我们显然希望基准算法的执行时间。其次，由于在整个库中使用的按值语义，我们也希望确保最小数量的数据被复制。最后，我们将确保使用`Hana`不会导致太多的代码膨胀，因为展开，如算法一节中所解释。
 
@@ -2090,7 +2090,7 @@ auto mammals = hana::filter(animals, [](auto animal) {
 
 **注意**
 
-* 请记住，`fusion::transform`通常是惰性的，我们正在强制它的评估为基准的目的。
+>请记住，`fusion::transform`通常是惰性的，我们正在强制它的评估为基准的目的。
 
 正如你所看到的，`Hana`和`Fusion`几乎是一样的。 对于较大的集合数据集，`std::array`稍慢，对于较大的集合，`std::vector`明显更慢。 因为我们也想要寻找代码膨胀，让我们来看看为完全相同的场景生成的可执行文件的大小：
 
@@ -2118,7 +2118,7 @@ auto ys = hana::reverse(std::move(xs));
 
 **注意**
 
-* 请记住，`fusion::reverse`通常是惰性的，我们强制其评估为基准的目的。
+>请记住，`fusion::reverse`通常是惰性的，我们强制其评估为基准的目的。
 
 如你所见，`Hana`比`Fusion`快，可能是因为在实现中更一致地使用了`move`语义。 如果我们没有提供一个临时容器来撤销，`Hana`不能执行任何动作，两个库也会执行类似的操作：
 
@@ -2143,7 +2143,7 @@ void f(Sequence const& seq) {
 
 **注意**
 
-* 仅提供将其他库的数据类型用于`Hana`的适配器; 不提供适配器（将`Hana`容器用于其他库）。
+>仅提供将其他库的数据类型用于`Hana`的适配器; 不提供适配器（将`Hana`容器用于其他库）。
 
 但是，使用外部适配器有几个陷阱。 例如，使用`Hana`一段时间后，您可能习惯于使用正常的比较运算符比较`Hana`元组，或者使用`Hana`的`integral_constants`进行算术。 但不保证这些操作符也被定义为外部适配器（并且通常它们不会）。 因此，你必须坚持`Hana`提供的实现这些运算符的函数。 例如：
 
@@ -2189,7 +2189,7 @@ static_assert(hana::front(Vector{}) == hana::type_c<int>, "");
 
 **注意**
 
-* 这些头文件的确切布局在关于头文件组织的部分中有说明。
+>这些头文件的确切布局在关于头文件组织的部分中有说明。
 
 然而，现在，假设我使用`mpl::size`查询向量的大小，然后将其与某个值进行比较。 我也可以使用`hana::length`，一切都会很好，但为了例子的缘故与我一起：
 
@@ -2227,7 +2227,7 @@ auto oh_jeez = hana::permutations(list); // probably won't make it
 
 **注意**
 
-* 可以通过使用`tag_of<T>::type`或等效的`tag_of_t<T>`来获得类型`T`的对象的`tag`。
+>可以通过使用`tag_of<T>::type`或等效的`tag_of_t<T>`来获得类型`T`的对象的`tag`。
 
 `tag`是正常`C++`类型的扩展。 事实上，默认情况下，类型`T`的标签是`T`本身，并且库的核心被设计为在这些情况下工作。 例如，`hana::make`期望`tag`或实际类型; 如果你发送一个类型`T`，它会做逻辑的事情，并用你传递的参数构造一个类型`T`的对象。 但是，如果您向其传递`tag`，则应该专门针对该`tag`进行处理，并提供自己的实现，如下所述。 因为`tag`是对通常类型的扩展，所以我们最终使用的是`tag`类型而不是通常的类型，文档有时使用单词类型，数据类型和标签可互换。
 
@@ -2356,7 +2356,7 @@ void print(std::ostream& os, X x) {
 
 **注意**
 
-* 检查前提条件对于输出函数没有多大意义，但是例如考虑获得序列的第`n`个元素的函数; 您可能需要确保索引不超出界限。
+>检查前提条件对于输出函数没有多大意义，但是例如考虑获得序列的第`n`个元素的函数; 您可能需要确保索引不超出界限。
 
 这种技术还使得更容易提供接口函数作为函数对象而不是普通的重载函数，因为只有接口函数本身必须经历定义函数对象的麻烦。 函数对象具有超过重载函数的几个优点，例如用于更高阶算法或变量的能力：
 
@@ -2801,7 +2801,7 @@ auto f(int i) -> foo<i>; // obviously won't work
 
 **TODO**
 
-* 改进这个解释，并谈论包装成类型的非整数常量表达式。
+>改进这个解释，并谈论包装成类型的非整数常量表达式。
 
 ## 副作用
 
@@ -2871,7 +2871,7 @@ constexpr int i = f(n);
 
 **TODO**
 
-* 解释在常量表达式中不会出现副作用，即使它们产生的表达式不被访问。
+>解释在常量表达式中不会出现副作用，即使它们产生的表达式不被访问。
 
 # 附录二：一个Mini MPL库
 
@@ -3467,15 +3467,23 @@ using namespace hpl;
 
 # 按字母顺序索引
 
+(略)
+
 # 头文件
 
 [头文件](./hana-header-zh.md)
 
 # TODO 列表
 
+(略)
+
 # Deprecated 列表
 
+(略)
+
 # Bug 列表
+
+(略)
 
 
 
