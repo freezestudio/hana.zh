@@ -1,6 +1,6 @@
 #Boost.Hana-zh
 
-Boost.Hana 中文文档，翻译自 <http://boostorg.github.io/hana/>
+[Boost.Hana](https://github.com/boostorg/hana) 中文文档，翻译自 <http://boostorg.github.io/hana/>
 版本: Boost.Hana 1.0.2
 
 **元编程标准库中文文档**
