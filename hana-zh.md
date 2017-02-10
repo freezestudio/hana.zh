@@ -2149,7 +2149,7 @@ auto oh_jeez = hana::permutations(list); // probably won't make it
 
 除了在本节中解释的陷阱，使用外部适配器应该像使用正常的`Hana`容器一样简单。 当然，只要有可能，你应该试着坚持`Hana`的容器，因为他们通常更友好的工作，并经常更优化。
 
-# Hana 内核
+# Hana内核
 
 本节的目标是对`Hana`的核心进行一个高层次的概述。 这个核心是基于`tag`的概念，它是从`Boost.Fusion`和`Boost.MPL`库借用的，`Hana`更进一步地加深了这个概念。 这些`tag`随后会用于多个目的，如算法定制，文档分组，改进错误消息和将容器转换为其他容器等。 得益于其模块化设计，`Hana`可以非常容易地以**ad-hoc**方式扩展。 事实上，库的所有功能都是通过**ad-hoc**定制机制提供的。
 
@@ -2806,7 +2806,7 @@ constexpr int i = f(n);
 
 > **TODO：** 解释在常量表达式中不会出现副作用，即使它们产生的表达式不被访问。
 
-# 附录二：一个Mini MPL库
+# 附录二：一个MiniMPL库
 
 本节介绍了`MPL`库的一个小型重构。 目标是尽可能向后兼容`MPL`，同时仍然使用`Hana`引擎。 只有`MPL`的“算法”部分被实现为一个案例研究，但是应该可以实现`MPL`的许多（但不是全部）元函数。
 
@@ -3406,15 +3406,15 @@ using namespace hpl;
 
 [头文件](./hana-header-zh.md)
 
-# TODO 列表
+# TODO列表
 
 (略)
 
-# Deprecated 列表
+# Deprecated列表
 
 (略)
 
-# Bug 列表
+# Bug列表
 
 (略)
 
