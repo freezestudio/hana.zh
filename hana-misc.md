@@ -4,13 +4,13 @@
 hana的核心部分有两个概念：`tag`和`concept`
 
 tag
-------
+---
 
 `tag`是为了统一异构类型，比如一系列的`integral_constant<int,n>`，虽然它们是不同的类型，但是在概念上它们是一致的，这时候我们用`integral_constant_tag`来表示它们。
 
 `tag`只是为了区别类型，事实上，我们通常只声明它，而不用定义它。就像这样：
 
-```C++
+```c++
 struct xxx_tag;
 ```
 
@@ -22,6 +22,6 @@ Tag dispatching
 
 
 concept
---------
+-------
 
 
