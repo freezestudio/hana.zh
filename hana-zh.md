@@ -21,7 +21,7 @@
 ```
 
 > **注意：** 手动安装还将安装一个与[pkg-config](http://www.freedesktop.org/wiki/Software/pkg-config/)一起使用的`hana.pc`文件。
-如果您已经安装了`Boost`，请不要再安装`Hana`，因为新安装将覆盖`Boost`附带的安装。
+>如果您已经安装了`Boost`，请不要再安装`Hana`，因为新安装将覆盖`Boost`附带的安装。
 
 如果在项目中使用`CMake`，可以使用`Hana`提供的[FindHana.cmake](https://github.com/boostorg/hana/blob/master/cmake/FindHana.cmake)模块将Hana设置为外部`CMake`项目.该模块还允许将`Hana`本地安装到该项目，而无需按照上述说明在系统上安装`Hana`。最后，如果你想对`Hana`做出贡献，[README](https://github.com/boostorg/hana/blob/master/README.md#hacking-on-hana)文档中有相关设置你的开发环境的描述。
 
@@ -30,7 +30,7 @@
 `Hana`仅依赖于`C++14`编译器和标准库，除此之外再无其它要求了。以下为当前支持`Hana`的`C++14`编译器/工具链列表：
 
 | 编译器/工具链   |               状态            |
------------------|-------------------------------
+-----------------|------------------------------
 | Clang >= 3.5.0 | 完整支持;每次向GitHub推送前测试 |
 | Xcode >= 6.3   | 完整支持;每次向GitHub推送前测试 |
 | GCC   >= 6.0.0 | 完整支持;每次向GitHub推送前测试 |
@@ -52,7 +52,7 @@
 
 ## 简介
 
-自`Boost.MPL`首发以来，它通过发布大量的模板接口为`C++程序员`进行元编程提供了便利，这个突破极大地促进了`C++模板元编程`的主流化，如今模板元编程已经深植于各种项目之中了。近期以来，`C++11`和`C++14`对语言带来了许多重大变化，其中一些使元编程更加容易，其它一些也大大拓宽了库的设计空间。由此,一些问题自然而来：是否仍然希望有元编程的抽象？如果是，有哪些？在考察了不同选择，如`MPL11`之后，最终答案是`Hana`库。对`Hana`的关键洞察是，类型和值的计算是一体两面的。通过统一这两个概念，元编程变得更为容易，新的令人兴奋的可能出现在我们面前了。
+自`Boost.MPL`首发以来，它通过发布大量的模板接口为`C++程序员`进行元编程提供了便利，这个突破极大地促进了`C++模板元编程`的主流化，如今模板元编程已经深植于各种项目之中了。近期以来，`C++11`和`C++14`对语言带来了许多重大变化，其中一些使元编程更加容易，其它一些也大大拓宽了库的设计空间。由此，一些问题自然而来：是否仍然希望有元编程的抽象？如果是，有哪些？在考察了不同选择，如`MPL11`之后，最终答案是`Hana`库。对`Hana`的关键洞察是，类型和值的计算是一体两面的。通过统一这两个概念，元编程变得更为容易，新的令人兴奋的可能出现在我们面前了。
 
 ### `C++`计算分类(四个象限)
 
@@ -171,9 +171,9 @@ auto names=hana::transform(animals,[](auto a){
 assert(hana::reverse(names)==hana::make_tuple("Snoopy","Garfield","Nemo"));
 ```
 
-> **注意：** `1_c`是一个用[C++14用户自定义字面量](http://en.wikipedia.org/wiki/C%2B%2B11#User-defined_literals)创建的[编译期数值](#编译期数值).此自定义字面量位于`boost::hana::literals`名字空间，故此`using`了该名字空间。
+> **注意：** `1_c`是一个用[C++14用户自定义字面量](http://en.wikipedia.org/wiki/C%2B%2B11#User-defined_literals)创建的[编译期数值](#编译期数值)。此自定义字面量位于`boost::hana::literals`名字空间，故此`using`了该名字空间。
 
-注意我们是如何将[C++14泛型lambda](http://en.wikipedia.org/wiki/C%2B%2B14#Generic_lambdas)传递到`transform`的;必须要这样做是因为`lambda`首先用`Fish`来调用的，接着用`Cat`，最后用`Dog`来调用，它们都是类型不同的。`Hana`提供了`C++`标准提供的大多数算法，除了它们工作在元组和异构容器上而不是在`std::tuple`等之上的之外。除了使用异构值之外，`Hana`还使用自然语法执行类型计算，所有这些都在编译期完成，没有任何运行时开销:
+注意我们是如何将[C++14泛型lambda](http://en.wikipedia.org/wiki/C%2B%2B14#Generic_lambdas)传递到`transform`的；必须要这样做是因为`lambda`首先用`Fish`来调用的，接着用`Cat`，最后用`Dog`来调用，它们都是类型不同的。`Hana`提供了`C++`标准提供的大多数算法，除了它们工作在元组和异构容器上而不是在`std::tuple`等之上的之外。除了使用异构值之外，`Hana`还使用自然语法执行类型计算，所有这些都在编译期完成，没有任何运行时开销：
 
 ```c++
 auto animal_types=hana::make_tuple(hana::type_c<Fish*>,hana::type_c<Cat&>,hana::type_c<Dog>);
@@ -271,7 +271,7 @@ assert(r=="char: x"s);
 > **注意：** 此文档中，我们将经常在字符串字面量上使用`s`后缀来创建`std::string`(而没有语法上的开销)，这是个[C++14用户自定义字面量](http://en.wikipedia.org/wiki/C%2B%2B11#User-defined_literals)的标准定义。
 
 
-因为`any`中保存有一个`char`，因此第二个函数被调用。如果`any`保存的是`int`，第一个函数将被调用。当`any`保存的动态类型不匹配任何一个`case`时，`default_`函数会被调用。最后，`switch`返回值为与`any`动态类型关联的函数的返回值。返回值的类型被推导为所有关联函数的返回类型的公共类型：
+因为`any`中保存有一个`char`，因此第二个函数被调用。如果`any`保存的是`int`，第一个函数将被调用。当`any`保存的动态类型不匹配任何一个`case`时，`default_`函数会被调用。最后，`switch_`的返回值为与`any`动态类型关联的函数的返回值。返回值的类型被推导为所有关联函数的返回类型的公共类型：
 
 ``` C++
 boost::any a='x';
@@ -321,20 +321,18 @@ auto switch_(Any& a){
 }
 ```
 
-注意在定义`cases`时是怎样使用`auto`关键字的；这通常更容易让编译器推断出`tuple`的类型，并使用`make_tuple`而不是手动处理类型。下一步要做的是区分出`default case`与其它`case`。为此，我们使用`Hana`的`find_if`算法，它在原理上类似于`std::find_if`：
+注意，在定义`cases`时是怎样使用`auto`关键字的；这通常更容易让编译器推断出`tuple`的类型，并使用`make_tuple`而不是手动处理类型。下一步要做的是区分出`default case`与其它`case`。为此，我们使用`Hana`的`find_if`算法，它在原理上类似于`std::find_if`：
 
 ``` C++
-template<typename Any>
-auto switch_(Any& a){
-    return [&a](auto... cases_){
-        auto cases=hana::make_tuple(cases_...);
-
-        auto default_=hana::find_if(cases,[](auto const& c){
-            return hana::first(c)==hana::type_c<default_t>;
-        });
-    };
-
+template <typename Any>
+auto switch_(Any& a) {
+  return [&a](auto ...cases_) {
+    auto cases = hana::make_tuple(cases_...);
+    auto default_ = hana::find_if(cases, [](auto const& c) {
+      return hana::first(c) == hana::type_c<default_t>;
+    });
     // ...
+  };
 }
 ```
 
@@ -400,7 +398,7 @@ auto switch_(Any& a){
     };
 ```
 
-`unpack`接受一个元组和一个函数，并以元组的内容作为参数调用函数。解包的结果是调用该函数的结果。此例，函数是一个泛型`lambda`，`lambda`调用了`process`函数。在这里使用`unpack`的原因是将`rest`元组转换为一个参数包更容易递归(相对于`tuple`来说)。在继续处理`process`函数之前，先对参数`second(*default_)`作以解释。如前所述,`default_`是一个可选值。像`std::optional`一样，这个可选值重载了`dereference`运算符(和箭头运算符)以允许访问`optional`内部的值。如果`optional`为空(nothing)，则引发编译错误。因为我们知道`default_`不为空(上面代码中有检查)，我们只须简单地将与`default`相关联的函数传递给`process`函数。接下来进行最后一步的处理，实现`process`函数：
+`unpack`接受一个元组和一个函数，并以元组的内容作为参数调用函数。解包的结果是调用该函数的结果。此例，函数是一个泛型`lambda`，`lambda`调用了`process`函数。在这里使用`unpack`的原因是将`rest`元组转换为一个参数包更容易递归(相对于`tuple`来说)。在继续处理`process`函数之前，先对参数`second(*default_)`作以解释。如前所述,`default_`是一个可选值。像`std::optional`一样，这个可选值重载了解引用(`dereference`)运算符(和箭头运算符)以允许访问`optional`内部的值。如果`optional`为空(`nothing`)，则引发编译错误。因为我们知道`default_`不为空(上面代码中有检查)，我们只须简单地将与`default`相关联的函数传递给`process`函数。接下来进行最后一步的处理，实现`process`函数：
 
 ``` C++
 template<typename Any,typename Default>
@@ -416,7 +414,7 @@ auto process(Any& a,std::type_index const& t,Default default_,Case& case_,Rest&.
 }
 ```
 
-这个函数有两个重载版本：一个重载用于至少有一个`case`，一个重载用于仅有`default_` `case`。与我们期望的一样，仅有`default_` `case`的重载简单调用`default`函数并返回该结果。另一个重载才更有趣。首先，我们检索与与该`case`相关联的类型并将其保存到`T`变量。这里`decltype(...)::type`看起来挺复杂的，其实很简单。详情参见[类型计算](#类型计算)。然后，我们比较`any`的动态类型是否匹配这个`case`，如果匹配就调用关联函数，将`any`转换为正确的类型，否则，用其余的`case`再次递归。是不是很简单？以下是完整的代码：
+这个函数有两个重载版本：一个重载用于至少有一个`case`，一个重载用于仅有`default_` `case`。与我们期望的一样，仅有`default_` `case`的重载简单调用`default`函数并返回该结果。另一个重载才更有趣。首先，我们检索与该`case`相关联的类型并将其保存到`T`变量。这里`decltype(...)::type`看起来挺复杂的，其实很简单。详情参见[类型计算](#类型计算)。然后，我们比较`any`的动态类型是否匹配这个`case`，如果匹配就调用关联函数，将`any`转换为正确的类型，否则，用其余的`case`再次递归。是不是很简单？以下是完整的代码：
 
 ``` C++
 #include <boost/hana.hpp>
@@ -477,14 +475,14 @@ auto switch_(Any& a) {
 
 ## 备忘表
 
-* **备注**
-
-* 大多数算法同时处理类型和值(参见[类型计算](#类型计算))
-* 算法通常返回一个新容器作为它们的返回结果；不会更改原容器(参见[算法](#算法的一般性操作))
-* 所有的算法都是`constexpr`函数对象
+>**备注**
+>
+>* 大多数算法同时处理类型和值(参见[类型计算](#类型计算))
+>* 算法通常返回一个新容器作为它们的返回结果；不会更改原容器(参见[算法](#算法的一般性操作))
+>* 所有的算法都是`constexpr`函数对象
 
 | 容器           | 说明                                                     |
------------------|----------------------------------------------------------
+----------------|----------------------------------------------------------
 | tuple          | 固定长度的基于索引的泛型异构序列，可将它视为异构对象中的`std::vector`|
 | optional       | 表示可选值，即可以为空的值。它有点像`std::optional`，除了空值也是编译时已知的外|
 | map            | 无序关联数组映射(唯一)编译期实体到任意对象。好比异构对象的`std::unordered_map`|
@@ -497,8 +495,9 @@ auto switch_(Any& a) {
 | lazy           | 封装一个惰性值或计算|
 | basic_tuple    | 简装版`hana::tuple`。不符合标准，但更有编译时效率|
 
+
 | 函数                     | 说明                                                          |
---------------------------|----------------------------------------------------------------
+-------------------------|----------------------------------------------------------------
 | adjust(sequence,value,f)| 将函数应用到序列的每个元素上，将值与元素比较，返回调整后的序列|
 | adjust_if(sequence,predicate,f)| 将函数应用到序列的每个元素上，调整满足谓词的每个元素，返回调整后的序号|
 | {all,any,none}(sequence) | 返回是否 所有/任意/无 序列的元素都是真值|
@@ -529,7 +528,7 @@ auto switch_(Any& a) {
 | insert_range(sequence,index,elements) | 在指定索引处插入多个元素，`index`必须是`IntegralConstant`|
 | is_empty(sequence)| 序列是否为空,返回值作为`IntegralConstant`|
 | length(sequence) | 序列的长度,返回值作为`IntegralConstant`|
-| lexicographical_compare(sequence1,sequence2[,predicate])| 执行两个序列的词典比较，可选地使用自定义谓词，默认情况下使用`hana::less`|
+| lexicographical_compare(<br/>sequence1,sequence2[,predicate])| 执行两个序列的词典比较，可选地使用自定义谓词，默认情况下使用`hana::less`|
 | maximum(sequence[,predicate])| 返回序列的最大元素，可选地根据谓词。 如果没有提供谓词，那么元素必须是`Orderable`(可排序)的|
 | minimum(sequence[,predicate])|返回序列的最小元素，可选地根据谓词。 如果没有提供谓词，那么元素必须是`Orderable`(可排序)的|
 | partition(sequence,predicate) | 将序列分成满足和不满足谓词的元素对 |
@@ -735,16 +734,16 @@ BOOST_HANA_RUNTIME_CHECK(distance(p1,p2)==5); //same function works!
 现在我们有了编译期计算，下一步需要解决编译期分发问题，元编程时，如果一些条件为真则编译一段代码，否则编译另一段代码是很有用的。就好像是[static_if](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2015/n4461.html)一样。还没搞清楚为什么需要编译期分发？先考察下面的代码(改编自[N4461](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2015/n4461.html))：
 
 ``` C++
-template<typename T,typename... Args>
-std::enable_if_t<std::is_constructible<T,Args...>::value,std::unique_ptr<T>>
-make_unique(Args&&... args){
-    return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
+template <typename T, typename ...Args>
+  std::enable_if_t<std::is_constructible<T, Args...>::value,
+std::unique_ptr<T>> make_unique(Args&&... args) {
+  return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
 }
 
-template<typename T,typename... Args>
-std::enable_if_t<!std::is_constructible<T,Args...>::value,std::unique_ptr<T>>
-make_unique(Args&&... args){
-    return std::unique_ptr<T>(new T{std::forward<Args>(args)...});
+template <typename T, typename ...Args>
+  std::enable_if_t<!std::is_constructible<T, Args...>::value,
+std::unique_ptr<T>> make_unique(Args&&... args) {
+  return std::unique_ptr<T>(new T{std::forward<Args>(args)...});
 }
 ```
 
@@ -782,20 +781,20 @@ auto hello=hana::false_c ? 123 : "hello";
 好吧，这样的代码看起来非常简洁，但是编译器不支持这个偷懒的办法。那么，如何实现类似`if`的分支呢?我们决定在分支中使用泛型`lambda`,借助`hana::if_`来执行我们想要的分支.以下重写`make_unique`:
 
 ``` C++
-template<typename T,typename... Args>
-std::unique_ptr<T> make_unique(Args&&... args){
-    return hana::if_(std::is_constructible<T,Args...>{},
-        [](auto&&... x){return std::unique_ptr<T>(new T(std::forward<Args>(x)...));},
-        [](auto&&... x){return std::unique_ptr<T>(new T{std::forward<Args>(x)...});}
-    )(std::forward<Args>(args)...);
+template <typename T, typename ...Args>
+std::unique_ptr<T> make_unique(Args&&... args) {
+  return hana::if_(std::is_constructible<T, Args...>{},
+    [](auto&& ...x) { return std::unique_ptr<T>(new T(std::forward<Args>(x)...)); },
+    [](auto&& ...x) { return std::unique_ptr<T>(new T{std::forward<Args>(x)...}); }
+  )(std::forward<Args>(args)...);
 }
 ```
 
-如果条件为真,`hana::if_`执行第一个泛型`lambda`分支,为假则执行第二个分支.`hana::if_`仅简单返回某分支,我们传入了`(std::forward<Args>(args)...)`参数以便返回的`lambda`立即执行,这里，预期的泛型`lambda`将参数`x...`用`args...`实参执行并返回结果.
+如果条件为真,`hana::if_`执行第一个泛型`lambda`分支,为假则执行第二个分支。`hana::if_`仅简单返回某分支,我们传入了`(std::forward<Args>(args)...)`参数以便返回的`lambda`立即执行,这里，预期的泛型`lambda`将参数`x...`用`args...`实参执行并返回结果.
 
 这样做（立即传参数）的原因是因为每个分支的主体只能在所有`x...`类型已知时才被实例化.事实上,由于分支是泛型`lambda`,在它被调用之前,参数的类型是未知的,编译器必须在检查lambda函数体内类型之前等待`x...`的类型变为已知.因为当条件不满足（`hana::if_`忽略了它）时，错误的`lambda`从不被调用，所以失败的`lambda`的函数体从不被类型检查，因此不会发生编译错误。
 
-> **注意：** `if_`的分支是`lambda`,因此，它们从不同的途径构造了`make_unique`函数.在这些分支中出现的变量必须被`lambdas`捕获或作为参数传递给它们，因此它们受到捕获或传递的方式（通过值，引用等）的影响。
+> **注意：** `if_`的分支是`lambda`，因此，它们从不同的途径构造了`make_unique`函数。在这些分支中出现的变量必须被`lambdas`捕获或作为参数传递给它们，因此它们受到捕获或传递的方式（通过值，引用等）的影响。
 
 由于这种将分支表达为`lambda`类型然后调用它们的模式是非常常见的，`Hana`提供了一个`eval_if`函数，其目的是使编译时分支更容易。 `eval_if`来自于一个事实，在`lambda`中，可以接收输入数据作为参数或从上下文中捕获它。 然而，为了模拟语言级`if`语句，隐含地从封闭范围捕获变量通常更自然. 因此，我们更喜欢这样写:
 
@@ -809,7 +808,7 @@ std::unique_ptr<T> make_unique(Args&&... args) {
 }
 ```
 
-这里，我们捕获了来自闭包范围的`args ...`变量，这就不需要我们引入新的`x ...`变量并将它们作为参数传递给分支。 然而，还两个问题. 首先，这样做将不会实现正确的结果，因为`hana::if_`将最终返回一个`lambda`，而不是返回调用该`lambda`的结果. 要解决这个问题，我们可以使用`hana::eval_if`而不是`hana::if_`：
+这里，我们捕获了来自闭包范围的`args ...`变量，这就不需要我们引入新的`x...`变量并将它们作为参数传递给分支。 然而，还有两个问题。 首先，这样做将不会实现正确的结果，因为`hana::if_`将最终返回一个`lambda`，而不是返回调用该`lambda`的结果。 要解决这个问题，我们可以使用`hana::eval_if`而不是`hana::if_`：
 
 ``` C++
 template <typename T, typename ...Args>
@@ -839,7 +838,7 @@ std::unique_ptr<T> make_unique(Args&&... args) {
 
 ### 为什么停到这里了
 
-为什么我们应该限制算术运算和分支?当您开始将IntegralConstants视为对象时，使用更多通常有用的函数来增加其接口更为明智。 例如，`Hana`的`IntegralConstants`定义了一个`times`成员函数，可用于调用函数一定次数，这对于循环展开尤其有用：
+为什么我们应该限制算术运算和分支?当您开始将`IntegralConstants`视为对象时，使用更多通常有用的函数来增加其接口更为明智。 例如，`Hana`的`IntegralConstants`定义了一个`times`成员函数，可用于调用函数一定次数，这对于循环展开尤其有用：
 
 ``` C++
 __attribute__((noinline)) void f() { }
@@ -863,7 +862,7 @@ auto values=hana::make_tuple(1,'x',3.4f);
 char x=values[1_c];
 ```
 
-这是怎样让工作变得简单的呢。 基本上，`hana::tuple`定义一个使用一个整数常量的运算符`[]`而不是一个通常常的整数，类似于:
+这是怎样让工作变得简单的呢。 基本上，`hana::tuple`定义一个使用一个整数常量的运算符`[]`而不是一个通常的整数，类似于:
 
 ``` C++
 template<typename N>
@@ -876,7 +875,7 @@ constexpr decltype(auto) operator[](N const&){
 
 ## 类型计算
 
-在这一点上，如果你有兴趣像`MPL`一样进行类型计算，你可能会想知道`Hana`如何帮助你。不用担心，`Hana`提供了一种通过将类型表示为值来执行具有大量表达性的类型计算的方法，就像我们将编译时数字表示为值一样。 这是一种全新的接近元编程的方法，如果你想熟练使用`Hana`，你应该尝试将你的旧`MPL`习惯放在一边。
+在这一点上，如果你有兴趣像`MPL`一样进行类型计算，你可能会想知道`Hana`如何帮助你。不用担心，`Hana`提供了一种通过将类型表示为值来执行具有大量表达性的类型计算的方法，就像我们将编译时数字表示为值一样。 这是一种全新的接触元编程的方法，如果你想熟练使用`Hana`，你应该尝试将你的旧`MPL`习惯放在一边。
 
 但是，请注意，现代`C++`的功能，如[自动推导返回类型](http://en.wikipedia.org/wiki/C%2B%2B14#Function_return_type_deduction)，在许多情况下不需要类型计算。 因此，在考虑做一个类型计算之前，你应该问自己是否有一个更简单的方法来实现你想要实现的。在大多数情况下，答案是肯定的。 然而，当答案是否定的时候，`Hana`将为你提供核力量设施来做需要做的事情。
 
@@ -995,7 +994,7 @@ auto vs = hana::filter(values, [](auto const& t) {
 });
 ```
 
-但这不是全部。 实际上，具有用于类型和值计算的统一语法允许我们在异构容器的接口中实现更大的一致性。 例如，考虑创建将类型与值相关联，然后访问它的元素的异构映射的简单任务。 使用`Fusion`,您那未经训练的眼睛不会一看到就能理解的：
+但这不是全部。 实际上，具有用于类型和值计算的统一语法允许我们在异构容器的接口中实现更大的一致性。 例如，考虑创建将类型与值相关联，然后访问它的元素的异构映射的简单任务。 使用`Fusion`，您那未经训练的眼睛不会看一眼就能理解的：
 
 ```c++
 auto map = fusion::make_map<char, int, long, float, double, void>(
@@ -1064,7 +1063,7 @@ auto result = huge_type_computation(t);
 using Result = decltype(result)::type;
 ```
 
-此外，由于您在计算中获得处理对象（无需包装/解包）的优势，因此包装和解包的成本将摊销在整个计算上。 因此，对于复杂类型的计算，根据在该计算内的值的工作的表达性增益，该三步骤过程的句法噪声很快变得可忽略。 另外，使用值而不是类型意味着我们可以避免在整个地方键入`typename`和`template`，这在经典元编程中占了很多句法噪声。
+此外，由于您在计算中获得处理对象（无需包装/解包）的优势，因此包装和解包的成本将摊销在整个计算上。 因此，对于复杂类型的计算，根据在该计算内的值的工作的表达性增益，该三步骤过程的句法噪声很快变得可忽略。另外，使用值而不是类型意味着我们可以避免在整个地方键入`typename`和`template`，这在经典元编程中占了很多句法噪声。
 
 另一点是，并不总是需要三个完整的步骤。 事实上，有时候只需要一个类型的计算并查询结果，而不必将结果作为一个普通的`C++`类型：
 
@@ -1117,7 +1116,7 @@ static_assert(std::is_same<
 >::value, "");
 ```
 
-正如你所看到的，3步过程的句法噪声几乎完全被其余的计算所掩盖了。
+正如你所看到的，`3`步过程的句法噪声几乎完全被其余的计算所掩盖了。
 
 ### 一般提升步骤
 
