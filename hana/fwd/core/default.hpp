@@ -15,7 +15,7 @@ Distributed under the Boost Software License, Version 1.0.
 
 BOOST_HANA_NAMESPACE_BEGIN
     //! @ingroup group-core
-    //! Mark a tag-dispatched method implementation as a default implementation.
+    //! 标记一个标签分派(tag-dispatched)方法的实现作为默认实现。
     //!
     //! When defining a new concept with tag-dispatched methods, it is
     //! sometimes possible to provide a default implementation for some

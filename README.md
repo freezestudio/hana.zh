@@ -61,7 +61,7 @@ struct Cat  { std::string name; };
 struct Dog  { std::string name; };
 
 int main() {
-  // 序列持有异构对象和操纵它们的算法。
+  // 持有异构对象的序列和操纵它们的算法。
   auto animals = hana::make_tuple(Fish{"Nemo"}, Cat{"Garfield"}, Dog{"Snoopy"});
   auto names = hana::transform(animals, [](auto a) {
     return a.name;
@@ -86,7 +86,7 @@ int main() {
   // 2. 很轻松地在编译时展开循环
   std::string s;
   hana::int_c<10>.times([&]{ s += "x"; });
-  // equivalent to s += "x"; s += "x"; ... s += "x";
+  // 相当于 s += "x"; s += "x"; ... s += "x";
 
   // 3. 检查表达式的有效性也很方便
   //    原先为此通常需要基于复杂的SFINAE技巧才行
@@ -158,27 +158,15 @@ ctest -R path.to.file # Runs the program as a test
 
 ## 项目结构
 
-The project is organized in a couple of subdirectories.
+项目有几个子目录。
 
-* The [benchmark](benchmark) directory contains compile-time and runtime
-  benchmarks to make sure the library is as fast as advertised. The benchmark
-  code is written mostly in the form of [eRuby][] templates. The templates
-  are used to generate C++ files which are then compiled while gathering
-  compilation and execution statistics.
-* The [cmake](cmake) directory contains various CMake modules and other
-  scripts needed by the build system.
-* The [doc](doc) directory contains configuration files needed to generate
-  the documentation. The `doc/html` subdirectory is automatically ignored
-  by Git; you can conveniently store a local copy of the documentation by
-  cloning the `gh-pages` branch into that directory, as explained above.
-* The [example](example) directory contains the source code for all the
-  examples of both the tutorial and the reference documentation.
-* The [experimental](experimental) directory contains various experiments that
-  might or might not make it into Hana at some point.
-* The [include](include) directory contains the library itself, which is
-  header only.
-* The [test](test) directory contains the source code for all the unit tests.
-
+* [benchmark](benchmark)目录存放编译时和运行时的基准测试内容，以确保库的速度与所说的那快。 基准测试中的代码主要以[eRuby][]模板的形式编写。 模板用于生成`C++`文件，以进行编译编译和执行统计。
+* [cmake](cmake)目录存放用于编译系统所用的CMake模块及其它脚本。
+* [doc](doc)目录存放生成文件所需的配置文件。Git会自动忽略`doc/html`子目录；如上所述，您可以方便地将`gh-pages`分支克隆到该目录以存储本地文档副本。
+* [example](example)目录存放所有教程与参考示例的源代码。
+* [experimental](experimental)目录存放的实验性功能有可能在适当的时候加入到库中。
+* [include](include)目录存放库的源代码，它们只有头文件。
+* [test](test)目录存放单元测试源代码。
 
 ## 相关资料
 

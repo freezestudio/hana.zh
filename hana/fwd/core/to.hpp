@@ -15,7 +15,7 @@ Distributed under the Boost Software License, Version 1.0.
 
 BOOST_HANA_NAMESPACE_BEGIN
     //! @ingroup group-core
-    //! Converts an object from one data type to another.
+    //! 将一个对象的类型转换到另一个类型。
     //!
     //! `to` is a natural extension of the `static_cast` language construct to
     //! data types. Given a destination data type `To` and an object `x`, `to`

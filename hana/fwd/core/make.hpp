@@ -15,7 +15,7 @@ Distributed under the Boost Software License, Version 1.0.
 
 BOOST_HANA_NAMESPACE_BEGIN
     //! @ingroup group-core
-    //! Create an object of the given tag with the given arguments.
+    //! 用指定的tag和参数创建一个对象。
     //!
     //! This function serves the same purpose as constructors in usual C++.
     //! However, instead of creating an object of a specific C++ type, it

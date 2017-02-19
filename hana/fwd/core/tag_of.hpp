@@ -15,7 +15,7 @@ Distributed under the Boost Software License, Version 1.0.
 
 BOOST_HANA_NAMESPACE_BEGIN
     //! @ingroup group-core
-    //! %Metafunction returning the tag associated to `T`.
+    //! %Metafunction 返回与类型`T`关联的tag。
     //!
     //! There are several ways to specify the tag of a C++ type. If it's a
     //! user-defined type, one can define a nested `hana_tag` alias:

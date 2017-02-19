@@ -15,7 +15,7 @@ Distributed under the Boost Software License, Version 1.0.
 
 BOOST_HANA_NAMESPACE_BEGIN
     //! @ingroup group-core
-    //! Returns whether the tag of an object matches a given tag.
+    //! 返回一个对象的tag是否匹配给定的tag。
     //!
     //! Given a tag `Tag` and a C++ type `T`, `is_a<Tag, T>` is a compile-time
     //! Logical representing whether the tag of `T` is exactly `Tag`. In other

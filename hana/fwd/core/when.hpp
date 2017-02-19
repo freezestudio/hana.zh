@@ -15,7 +15,7 @@ Distributed under the Boost Software License, Version 1.0.
 
 BOOST_HANA_NAMESPACE_BEGIN
     //! @ingroup group-core
-    //! Enable a partial specialization only if a boolean condition is true.
+    //! 仅当指定的条件成立时才启用偏特化。
     //!
     //! You might also want to take a look at `when_valid`, which provides
     //! similar functionality but enables a specialziation only when some
