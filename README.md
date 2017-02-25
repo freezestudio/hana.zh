@@ -182,11 +182,11 @@ ctest -R path.to.file # Runs the program as a test
 
 ## 贡献
 
-参见[CONTRIBUTING.md](CONTRIBUTING.md).
+参见[CONTRIBUTING.md](https://github.com/boostorg/hana/blob/master/CONTRIBUTING.md).
 
 ## 许可
 
-参见[LICENSE.md](LICENSE.md).
+参见[LICENSE.md](https://github.com/boostorg/hana/blob/master/LICENSE.md).
 
 
 ## 发布
