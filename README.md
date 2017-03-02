@@ -1,7 +1,7 @@
 # Boost.Hana-zh <a target="_blank" href="http://semver.org">![Version][badge.version]</a> <a target="_blank" href="https://travis-ci.org/boostorg/hana">![Travis status][badge.Travis]</a> <a target="_blank" href="https://ci.appveyor.com/project/ldionne/hana">![Appveyor status][badge.Appveyor]</a> <a target="_blank" href="http://melpon.org/wandbox/permlink/g4ozIK33ITDtyGa3">![Try it online][badge.wandbox]</a> <a target="_blank" href="https://gitter.im/boostorg/hana">![Gitter Chat][badge.Gitter]</a>
 
 [Boost.Hana](https://github.com/boostorg/hana) 中文文档，翻译自 <http://boostorg.github.io/hana/>
-版本: Boost.Hana 1.0.2
+版本: Boost.Hana 1.1.0
 
 ## **元编程标准库中文文档**
 

@@ -6,7 +6,27 @@
 
 ## 先决条件和安装
 
-`Hana`是一个没有外部依赖的头文件库(甚至不依赖`Boost`)。因此，在您自己的项目中使用`Hana`非常容易。基本上，只需添加`include/`目录到你的编译器的头文件搜索路径即可。以下方式可以干净地安装`Hana`。首先，您可以安装`Boost 1.61.0`或更高版本，因为从该版本开始，`Hana`包含在`Boost`中。如果你不想安装所有的`Boost`，也可以只安装`Hana`。为此，您可以从官方[GitHub存储库](https://github.com/boostorg/hana)下载代码，并通过从项目根目录执行以下命令来手动安装库(需要[CMake](http://www.cmake.org/))。
+`Hana`是一个没有外部依赖的头文件库(甚至不依赖`Boost`)。因此，在您自己的项目中使用`Hana`非常容易。基本上，只需添加`include/`目录到你的编译器的头文件搜索路径即可。以下方式可以干净地安装`Hana`。
+
+1. 安装`Boost`
+
+    自`Boost 1.61.0`或更高版本开始，`Hana`包含在`Boost`中。因此，安装了`Boost`即可访问`Hana`了。
+
+1. 用CMake项目来本地安装。
+
+    如果你在项目中使用了`CMake`,你可以使用[FindHana.cmake](https://github.com/boostorg/hana/blob/master/cmake/FindHana.cmake)模块将`Hana`作为外部`CMake`项目的方式安装。这个模块允许使用已安装的Hana版本，也可以安装到你本地`CMake`项目中而不需要系统的全局版本。
+  
+1. 使用`Homebrew`
+
+    在MacOS上，可以使用[Homebrew](http://brew.sh/)安装`Hana`：
+
+    ```sh
+    brew install hana
+    ```
+
+1. 手动安装
+
+    您可以从官方[GitHub存储库](https://github.com/boostorg/hana)下载代码，并通过从项目根目录执行以下命令来手动安装库(需要[CMake](http://www.cmake.org/))。
 
 ``` bat
 > mkdir build && cd build
