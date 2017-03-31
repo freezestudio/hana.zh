@@ -6,19 +6,19 @@
 
 ## 先决条件和安装
 
-`Hana`是一个没有外部依赖的头文件库(甚至不依赖`Boost`)。因此，在您自己的项目中使用`Hana`非常容易。基本上，只需添加`include/`目录到你的编译器的头文件搜索路径即可。以下方式可以干净地安装`Hana`。
+`Hana`是一个没有外部依赖的头文件库(甚至不依赖`Boost`)。因此，在您自己的项目中使用`Hana`非常容易。基本上，只需下载本项目并添加`include/`目录到你的编译器的头文件搜索路径即可。或者，以下方式可以干净地安装`Hana`。
 
 1. 安装`Boost`
 
     自`Boost 1.61.0`或更高版本开始，`Hana`包含在`Boost`中。因此，安装了`Boost`即可访问`Hana`了。
 
-1. 用CMake项目来本地安装。
+1. 用`CMake`项目本地安装
 
-    如果你在项目中使用了`CMake`,你可以使用[FindHana.cmake](https://github.com/boostorg/hana/blob/master/cmake/FindHana.cmake)模块将`Hana`作为外部`CMake`项目的方式安装。这个模块允许使用已安装的Hana版本，也可以安装到你本地`CMake`项目中而不需要系统的全局版本。
+    如果你在项目中使用了`CMake`,你可以使用[FindHana.cmake](https://github.com/boostorg/hana/blob/master/cmake/FindHana.cmake)模块将`Hana`作为外部`CMake`项目的方式安装。这个模块允许使用已安装的`Hana`版本，也可以安装到你本地`CMake`项目中而不需要系统的全局版本。
   
 1. 使用`Homebrew`
 
-    在MacOS上，可以使用[Homebrew](http://brew.sh/)安装`Hana`：
+    在`MacOS`上，可以使用[Homebrew](http://brew.sh/)安装`Hana`：
 
     ```sh
     brew install hana
@@ -34,16 +34,16 @@
 > cmake --build . --target install
 ```
 
-这样，将在您的平台上安装Hana到缺省的安装目录(Unix为`/usr/local`,Windows为`C:\\Program Files`)。如果想要安装到指定位置,可以这样做：
+这样，将在您的平台上安装`Hana`到缺省的安装目录(`Unix`为`/usr/local`,`Windows`为`C:\\Program Files`)。如果想要安装到指定位置,可以这样做：
 
 ``` bat
 > cmake .. -DCMAKE_INSTALL_PREFIX=/custom/install/prefix 
 ```
 
-> **注意：** 手动安装还将安装一个与[pkg-config](http://www.freedesktop.org/wiki/Software/pkg-config/)一起使用的`hana.pc`文件。
->如果您已经安装了`Boost`，请不要再安装`Hana`，因为新安装将覆盖`Boost`附带的安装。
+> **注意：** 手动安装或者`Homebrew`方式安装还将安装一个与[pkg-config](http://www.freedesktop.org/wiki/Software/pkg-config/)一起使用的`hana.pc`文件。
+>不要将全局安装的`Hana`与全局安装的`Boost`混合在一起，因为这两种安装方式都会发生冲突。 您不会知道使用哪一个版本的`Hana`，并且可能会破坏依赖于`Boost`（或反之亦然）提供的`Hana`版本的库。 一般来说，你应该尽可能地使用本地安装(局部安装)。
 
-如果在项目中使用`CMake`，可以使用`Hana`提供的[FindHana.cmake](https://github.com/boostorg/hana/blob/master/cmake/FindHana.cmake)模块将Hana设置为外部`CMake`项目.该模块还允许将`Hana`本地安装到该项目，而无需按照上述说明在系统上安装`Hana`。最后，如果你想对`Hana`做出贡献，[README](https://github.com/boostorg/hana/blob/master/README.md#hacking-on-hana)文档中有相关设置你的开发环境的描述。
+最后，如果你想对`Hana`做出贡献，[README](https://github.com/boostorg/hana/blob/master/README.md#hacking-on-hana)文档中有相关最佳设置你的开发环境的描述。
 
 ### 编译器要求
 
@@ -229,7 +229,7 @@ struct Person{
 
 // 2. Write a generic serializer (bear with std::ostream for the example)
 auto serialize=[](std::ostream& os,auto const& object){
-    hana::for_each(hana::members(objec),[&](auto member){
+    hana::for_each(hana::members(object),[&](auto member){
         os<<member<<std::endl;
     });
 };
@@ -245,7 +245,7 @@ serialize(std::cout,john);
 
 酷，但是我已经听到你的抱怨了，编译器给出不可理解的错误消息。我们是故意搞砸的，这表明构建`Hana`的家伙是一般人而不是专业的元编程程序员。让我们先看看错误情况：
 
-``` C++
+```c++
 auto serialize = [](std::ostream& os, auto const& object) {
   hana::for_each(os, [&](auto member) {
     //           ^^ oopsie daisy!
@@ -256,7 +256,7 @@ auto serialize = [](std::ostream& os, auto const& object) {
 
 详情：
 
-``` C++
+```c++
 error: static_assert failed "hana::for_each(xs, f) requires 'xs' to be Foldable"
         static_assert(Foldable<S>::value,
         ^             ~~~~~~~~~~~~~~~~~~
@@ -277,7 +277,7 @@ serialize(std::cout, john);
 
 本节，我们的目标是实现一种能够处理`boost::any`的`switch`语句。给定一个`boost::any`，目标是分发`any`的动态类型到关联的函数：
 
-``` C++
+```c++
 boost::any a='x';
 std::string r=switch_(a)(
     case_<int>([](auto i){return "int: "s+std::to_string(i);}),
@@ -288,12 +288,12 @@ std::string r=switch_(a)(
 assert(r=="char: x"s);
 ```
 
-> **注意：** 此文档中，我们将经常在字符串字面量上使用`s`后缀来创建`std::string`(而没有语法上的开销)，这是个[C++14用户自定义字面量](http://en.wikipedia.org/wiki/C%2B%2B11#User-defined_literals)的标准定义。
+> **注意：** 本文档中，我们将经常在字符串字面量上使用`s`后缀来创建`std::string`(而没有语法上的开销)，这是个[C++14用户自定义字面量](http://en.wikipedia.org/wiki/C%2B%2B11#User-defined_literals)的标准定义。
 
 
 因为`any`中保存有一个`char`，因此第二个函数被调用。如果`any`保存的是`int`，第一个函数将被调用。当`any`保存的动态类型不匹配任何一个`case`时，`default_`函数会被调用。最后，`switch_`的返回值为与`any`动态类型关联的函数的返回值。返回值的类型被推导为所有关联函数的返回类型的公共类型：
 
-``` C++
+```c++
 boost::any a='x';
 auto r=switch_(a)(
     case_<int>([](auto)->int{return 1;}),
@@ -308,7 +308,7 @@ assert(r==2ll);
 
 现在，我们看看如何用`Hana`来实现这个实用程序。第一步是将每个类型关联到一个函数。为此，我们将每个`case_`表示为`hana::pair`，`hana::pair`的第一个元素是类型，第二个元素是函数。另外，我们(arbitrarily)决定将`default_`表示为一个映射一个虚拟的类型到一个函数的`hana::pair`。
 
-``` C++
+```c++
 template<typename T>
 auto case_=[](auto f){
     return hana::make_pair(hana::type_c<T>,f);
@@ -320,10 +320,10 @@ auto default_=case_<default_t>;
 
 为支持上述接口，`switch_`必须返回一个`case`分支的函数，另外，`switch_(a)`还需要接受任意数量的`case`(它们都是`haha::pair`)，并能以正确的逻辑执行某个`case`的分派函数。可以通过返回`C++14`泛型`lambda`来实现：
 
-``` C++
+```c++
 template<typename Any>
 auto switch_(Any& a){
-    return [&a](auto... case_){
+    return [&a](auto... cases_){
         // ...
     };
 }
@@ -331,7 +331,7 @@ auto switch_(Any& a){
 
 参数包不是太灵活，我们把它转为`tuple`好便于操作：
 
-``` C++
+```c++
 template<typename Any>
 auto switch_(Any& a){
     return [&a](auto... cases_){
@@ -343,7 +343,7 @@ auto switch_(Any& a){
 
 注意，在定义`cases`时是怎样使用`auto`关键字的；这通常更容易让编译器推断出`tuple`的类型，并使用`make_tuple`而不是手动处理类型。下一步要做的是区分出`default case`与其它`case`。为此，我们使用`Hana`的`find_if`算法，它在原理上类似于`std::find_if`：
 
-``` C++
+```c++
 template <typename Any>
 auto switch_(Any& a) {
   return [&a](auto ...cases_) {
@@ -358,7 +358,7 @@ auto switch_(Any& a) {
 
 `find_if`接受一个元组和一个谓词，返回元组中满足谓词条件的第一个元素。返回结果是一个`hana::optional`，它类似于`std::optional`，除了可选值为`empty`或不是编译时已知的。如果元组的元素不满足谓词条件，`find_if`不返回任何值(空值)。否则，返回`just(x)`(非空值)，其中`x`是满足谓词的第一个元素。与`STL`算法中使用的谓词不同，此处使用的谓词必须是泛型的，因为元组中的元素是异构的。此外，该谓词必须返回`Hana`可调用的`IntegeralConstant`，这意味着谓词的结果必须是编译时已知的。更多细节请参见[交叉相位算法](#交叉相位(Cross-phase)算法)。在谓词内部，我们只需将`cases`的第一个元素的类型与`type_c<default_t>`比较。如果还记得我们使用`hana::pair`来对`case`进行编码的话，这里的意思即为我们在所有提供的`case`中找到`default case`。但是，如果没有提供`default case`时会怎样呢？当然是编译失败！
 
-``` C++
+```c++
 template<typename Any>
 auto switch_(Any& a){
     return [&a](auto... cases_){
@@ -376,7 +376,7 @@ auto switch_(Any& a){
 
 注意我们是怎样用`static_assert`来处理`nothing`结果的。担心`default_`是非`constexpr`对象吗？不用。`Hana`能确保非编译期已知的信息传递到运行时。这显然能保证`default_`必须存在。下一步该处理非`default`的`case`了，我们这里用`filter`算法，它可以使序列仅保留满足谓词的元素：
 
-``` C++
+```c++
 template<typename Any>
 auto switch_(Any& a){
     return [&a](auto... cases_){
@@ -397,7 +397,7 @@ auto switch_(Any& a){
 
 接下来就该查找哪一个`case`匹配`any`的动态类型了，找到后要调用与此`case`关联的函数。简单处理的方法是使用递归，传入参数包。当然，也可以复杂一点，用`hana`算法来实现。有时最好的办法就是用最基础的技术从头开始编写。故此，我们将用`unpack`函数来实现，这个函数需要一个元组，元组中的元素就是这些`case`(不含`default_`)：
 
-``` C++
+```c++
 template<typename Any>
 auto switch_(Any& a){
     return [&a](auto... cases_){
@@ -420,7 +420,7 @@ auto switch_(Any& a){
 
 `unpack`接受一个元组和一个函数，并以元组的内容作为参数调用函数。解包的结果是调用该函数的结果。此例，函数是一个泛型`lambda`，`lambda`调用了`process`函数。在这里使用`unpack`的原因是将`rest`元组转换为一个参数包更容易递归(相对于`tuple`来说)。在继续处理`process`函数之前，先对参数`second(*default_)`作以解释。如前所述,`default_`是一个可选值。像`std::optional`一样，这个可选值重载了解引用(`dereference`)运算符(和箭头运算符)以允许访问`optional`内部的值。如果`optional`为空(`nothing`)，则引发编译错误。因为我们知道`default_`不为空(上面代码中有检查)，我们只须简单地将与`default`相关联的函数传递给`process`函数。接下来进行最后一步的处理，实现`process`函数：
 
-``` C++
+```c++
 template<typename Any,typename Default>
 auto process(Any&,std::type_index const&,Default& default_){
     return default_();
@@ -434,9 +434,9 @@ auto process(Any& a,std::type_index const& t,Default default_,Case& case_,Rest&.
 }
 ```
 
-这个函数有两个重载版本：一个重载用于至少有一个`case`，一个重载用于仅有`default_` `case`。与我们期望的一样，仅有`default_` `case`的重载简单调用`default`函数并返回该结果。另一个重载才更有趣。首先，我们检索与该`case`相关联的类型并将其保存到`T`变量。这里`decltype(...)::type`看起来挺复杂的，其实很简单。详情参见[类型计算](#类型计算)。然后，我们比较`any`的动态类型是否匹配这个`case`，如果匹配就调用关联函数，将`any`转换为正确的类型，否则，用其余的`case`再次递归。是不是很简单？以下是完整的代码：
+这个函数有两个重载版本：一个重载用于至少有一个`case`，一个重载用于仅有`default_` `case`。与我们期望的一样，仅有`default_` `case`的重载简单调用`default`函数并返回该结果。另一个重载才更有趣。首先，我们检索与该`case`相关联的类型并将其保存到`T`变量。这里`decltype(...)::type`看起来挺复杂的，其实很简单。大致来说，这需要一个表示为对象的类型（一个`type<T>`)并将其类型取回(一个`T`)。详情参见[类型计算](#类型计算)。然后，我们比较`any`的动态类型是否匹配这个`case`，如果匹配就调用关联函数，将`any`转换为正确的类型，否则，用其余的`case`再次递归。是不是很简单？以下是完整的代码：
 
-``` C++
+```c++
 #include <boost/hana.hpp>
 #include <boost/any.hpp>
 #include <cassert>
@@ -591,7 +591,7 @@ auto switch_(Any& a) {
 
 本节介绍`IntegralConstant`的重要概念和`Hana`的元编程范式背后的哲学。让我们从一个奇怪的问题开始。什么是`integral_constant`?
 
-``` C++
+```c++
 template<class T, T v>
 struct integral_constant{
     static constexpr T value = v;
@@ -606,7 +606,7 @@ struct integral_constant{
 
 一个有效的回答是，`integral_constant`表示数值的类型编码,或者更一般地表示为任何整型对象。比如，我们可以使用模板别名很容易地在该表示中的数值上定义后继函数：
 
-``` C++
+```c++
 template<typename N>
 using succ=integral_constant<int, N::value + 1>;
 
@@ -618,20 +618,20 @@ using three=succ<two>;
 
 通常将这种使用`integral_constant`的方式用于模板元编程的类型实体。我们还会看到另一种`integral_constant`使用方式是作为一个运行时对象，代表一个整型的`constexpr`值：
 
-``` C++
+```c++
 auto one=integral_constant<int,1>{};
 ```
 
 这里，虽然`one`没有标记为`constexpr`，它所拥有的抽象值(一个`constexpr`的 1)在编译期仍然可用，因为该值被编码到`one`类型中，事实上，即使`one`不是`constexpr`，我们也可以用`decltype`检索它表示的编译期值：
 
-``` C++
+```c++
 auto one=integral_constant<int,1>{};
 constexpr int one_constexpr=decltype(one)::value;
 ```
 
 但是为什么我们会想把`integral_constant`当作对象而不是类型实体呢？为了看是为什么，考虑我们现在如果实现之前同样的后继函数：
 
-``` C++
+```c++
 template<typename N>
 auto succ(N){
     return integral_constant<int,N::value+1>{};
@@ -648,7 +648,7 @@ auto three=succ(two);
 
 `MPL`定义了多个[算术运算符](http://www.boost.org/doc/libs/release/libs/mpl/doc/refmanual/arithmetic-operations.html)以支持使用`integral_constant`做编译期计算。一个典型的例子是`plus`运算符，其大致实现如下：
 
-``` C++
+```c++
 template<typename X,typename Y>
 struct plus{
     using type=integral_constant<decltype(X::value+Y::value),X::value+Y::value>;
@@ -659,7 +659,7 @@ using three=plus<integral_constant<int,1>,integral_constant<int,2>>::type;
 
 通过将`integral_constant`作为对象而不是类型来看待，从元函数到函数的转换非常简单：
 
-``` C++
+```c++
 template<typename V,V v,typename U,U u>
 constexpr auto operator+(integral_constant<V,v>,integral_constant<U,u>){
     return integral_constant<decltype(v+u>),v+u>{};
@@ -670,7 +670,7 @@ auto three=integral_constant<int,1>{}+integral_constant<int,2>{};
 
 强调这个操作符不返回正常整数的事实是非常重要。相反，它返回一个值初始化的对象，其类型包含加法的结果。 该对象中包含的唯一有用的信息实际上是在它的类型中，我们正在创建一个对象，因为它允许我们使用这个超赞的值级语法。 事实证明，我们可以通过使用[C++14变量模板](http://en.wikipedia.org/wiki/C%2B%2B14#Variable_templates)来简化`integral_constant`的创建，从而使这种语法更好：
 
-``` C++
+```c++
 template<int i>
 constexpr integral_constant<int,i> int_c{};
 
@@ -679,7 +679,7 @@ auto three=int_c<1>+int_c<2>;
 
 现在我们谈论的是在初始类型层面方法中表现出的增强体验，不是吗？ 但还有更多; 我们还可以使用`C++14`用户定义的字面量使这个过程更简单：
 
-``` C++
+```c++
 template<char... digits>
 constexpr auto operator"" _c(){
     //parse the digits and return an integral_constant
@@ -690,7 +690,7 @@ auto three=1_c + 3_c;
 
 `Hana`提供了自己的`integral_constants`，它定义了算术运算符，就像我们上面显示的一样， `Hana`还提供了变量模板，可以轻松创建不同类型的`integral_constants`：`int_c，long_c，bool_c`等。这允许你省略后面的`{}`大括号，否则需要值来初始化这些对象。 当然，也提供`_c`后缀; 它是`hana::literals`命名空间的一部分，您必须在使用它之前将其导入到命名空间中：
 
-``` C++
+```c++
 using namesapce hana::literals;
 
 auto three=1_c + 3_c;
@@ -706,7 +706,7 @@ auto three=1_c + 3_c;
 
 先看看用类型计算的样子(使用`MPL`)：
 
-``` C++
+```c++
 template<typename P1,typename P2>
 struct distance{
     using xs=typename mpl::minus<typename P1::x,typename P2::x>::type;
@@ -728,7 +728,7 @@ static_assert(mpl::equal_to<
 
 嗯...现在，让我们用上面提到的值级方法来实现它：
 
-``` C++
+```c++
 template<typename P1,typename P2>
 constexpr auto distance(P1 p1,P2 p2){
     auto xs=p1.x-p2.x;
@@ -741,7 +741,7 @@ BOOST_HANA_CONSTANT_CHECK(distance(point(3_c,5_c),point(7_c,2_c))==5_c);
 
 这个版本看起来简洁多了。然而，这还没完。注意到`distance`函数看起来和你为计算动态值的欧几里德距离所写的一样吗？ 事实上，因为我们在动态值和编译期计算使用了相同的语法，为其编写的通用函数将能同时工作于编译期和运行期！
 
-``` C++
+```c++
 auto p1=point(3,5); // dynamic values now
 auto p2=point(7,2); //
 BOOST_HANA_RUNTIME_CHECK(distance(p1,p2)==5); //same function works!
@@ -753,7 +753,7 @@ BOOST_HANA_RUNTIME_CHECK(distance(p1,p2)==5); //same function works!
 
 现在我们有了编译期计算，下一步需要解决编译期分发问题，元编程时，如果一些条件为真则编译一段代码，否则编译另一段代码是很有用的。就好像是[static_if](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2015/n4461.html)一样。还没搞清楚为什么需要编译期分发？先考察下面的代码(改编自[N4461](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2015/n4461.html))：
 
-``` C++
+```c++
 template <typename T, typename ...Args>
   std::enable_if_t<std::is_constructible<T, Args...>::value,
 std::unique_ptr<T>> make_unique(Args&&... args) {
@@ -769,7 +769,7 @@ std::unique_ptr<T>> make_unique(Args&&... args) {
 
 以上代码使用构造函数正规的语法形式创建`std::unique_ptr`。为此，它利用`SFINAE`实现两个不同的重载。现在，每个看到这些代码的人都不仅会问，为什么不能更简单一点：
 
-``` C++
+```c++
 template <typename T, typename ...Args>
 std::unique_ptr<T> make_unique(Args&&... args) {
   if (std::is_constructible<T, Args...>::value)
@@ -783,7 +783,7 @@ std::unique_ptr<T> make_unique(Args&&... args) {
 
 为了模拟这一点，Hana提供了一个`if_`函数，它像一个普通的`if`语句一样工作，除了它需要一个可以是`IntegralConstant`的条件，并返回由条件选择的两个值之一（可能有不同的类型）之外。如果条件为真，则返回第一个值，否则返回第二个值。 一个有点空洞的例子如下：
 
-``` C++
+```c++
 auto one_two_three=hana::if_(hana::true_c,123,"hello");
 auto hello=hana::if_(hana::false_c,123,"hello");
 ```
@@ -792,7 +792,7 @@ auto hello=hana::if_(hana::false_c,123,"hello");
 
 `one_two_three`等于`123`,`hello`等于`"hello"`。从另一个角度看,`if_`很像`?:`运算符,除了`:`分割符两边可以有不同类型外:
 
-``` C++
+```c++
 //这两条语句都失败了,因为分支有不兼容的类型.
 auto one_two_three=hana::true_c ? 123 : "hello";
 auto hello=hana::false_c ? 123 : "hello";
@@ -800,7 +800,7 @@ auto hello=hana::false_c ? 123 : "hello";
 
 好吧，这样的代码看起来非常简洁，但是编译器不支持这个偷懒的办法。那么，如何实现类似`if`的分支呢?我们决定在分支中使用泛型`lambda`,借助`hana::if_`来执行我们想要的分支.以下重写`make_unique`:
 
-``` C++
+```c++
 template <typename T, typename ...Args>
 std::unique_ptr<T> make_unique(Args&&... args) {
   return hana::if_(std::is_constructible<T, Args...>{},
@@ -818,7 +818,7 @@ std::unique_ptr<T> make_unique(Args&&... args) {
 
 由于这种将分支表达为`lambda`类型然后调用它们的模式是非常常见的，`Hana`提供了一个`eval_if`函数，其目的是使编译时分支更容易。 `eval_if`来自于一个事实，在`lambda`中，可以接收输入数据作为参数或从上下文中捕获它。 然而，为了模拟语言级`if`语句，隐含地从封闭范围捕获变量通常更自然. 因此，我们更喜欢这样写:
 
-``` C++
+```c++
 template <typename T, typename ...Args>
 std::unique_ptr<T> make_unique(Args&&... args) {
   return hana::if_(std::is_constructible<T, Args...>{},
@@ -830,7 +830,7 @@ std::unique_ptr<T> make_unique(Args&&... args) {
 
 这里，我们捕获了来自闭包范围的`args ...`变量，这就不需要我们引入新的`x...`变量并将它们作为参数传递给分支。 然而，还有两个问题。 首先，这样做将不会实现正确的结果，因为`hana::if_`将最终返回一个`lambda`，而不是返回调用该`lambda`的结果。 要解决这个问题，我们可以使用`hana::eval_if`而不是`hana::if_`：
 
-``` C++
+```c++
 template <typename T, typename ...Args>
 std::unique_ptr<T> make_unique(Args&&... args) {
   return hana::eval_if(std::is_constructible<T, Args...>{},
@@ -842,7 +842,7 @@ std::unique_ptr<T> make_unique(Args&&... args) {
 
 这里，我们使用`[&]`通过引用捕获闭包的`args ...`，我们不需要接收任何参数. 此外,`hana::eval_if`假定其参数是可以被调用的分支，它将负责调用由条件选择的分支. 然而，这仍然会导致编译失败，因为`lambda`的主体不再有任何依赖，因而将对两个分支进行语义分析，即使只有一个将被使用. 这个问题的解决方案是使`lambda`的主体人为地依赖于某些东西，以防止编译器在`lambda`被实际使用之前执行语义分析. 为了使这一点成为可能，`hana::eval_if`将使用标识函数（一个函数无改变地返回其参数）调用所选的分支，如果分支接受这样的参数：
 
-``` C++
+```c++
 template <typename T, typename ...Args>
 std::unique_ptr<T> make_unique(Args&&... args) {
   return hana::eval_if(std::is_constructible<T, Args...>{},
@@ -860,7 +860,7 @@ std::unique_ptr<T> make_unique(Args&&... args) {
 
 为什么我们应该限制算术运算和分支?当您开始将`IntegralConstants`视为对象时，使用更多通常有用的函数来增加其接口更为明智。 例如，`Hana`的`IntegralConstants`定义了一个`times`成员函数，可用于调用函数一定次数，这对于循环展开尤其有用：
 
-``` C++
+```c++
 __attribute__((noinline)) void f() { }
 int main() {
   hana::int_c<10>.times(f);
@@ -869,7 +869,7 @@ int main() {
 
 以上代码在编译会展开为调用`10`次`f`。相当于如下操作:
 
-``` C++
+```c++
 f();f();...f();//10 times
 ```
 
@@ -877,14 +877,14 @@ f();f();...f();//10 times
 
 `IntegralConstant`的另一个很好的用途是定义更好的运算符来索引异构序列。`std::tuple`必须使用`std::get`访问,`hana::tuple`可以使用用于标准库容器的熟悉的`operator []`来访问：
 
-``` C++
+```c++
 auto values=hana::make_tuple(1,'x',3.4f);
 char x=values[1_c];
 ```
 
 这是怎样让工作变得简单的呢。 基本上，`hana::tuple`定义一个使用一个整数常量的运算符`[]`而不是一个通常的整数，类似于:
 
-``` C++
+```c++
 template<typename N>
 constexpr decltype(auto) operator[](N const&){
     return std::get<N::value>(*this);
@@ -903,7 +903,7 @@ constexpr decltype(auto) operator[](N const&){
 
 `Hana`中类型计算的关键点基本上与编译时计算的方法相同。基本想法是将编译时实体表示为对象，将它们包装到某种容器中。 对于`IntegralConstant`，编译时实体是整型的常量表达式，我们使用的包装器是`integral_constant`。在本节中，编译时实体将是类型，我们将使用的包装器称为`type`，就像我们对`IntegralConstant`做的一样，让我们开始定义一个可以用来表示类型的虚拟模板：
 
-``` C++
+```c++
 template<typename T>
 struct basic_type{
     //empty (for now)
@@ -917,7 +917,7 @@ basic_type<char> Char{};
 
 虽然这看起来完全没用，但实际上足以开始编写看起来像函数的元函数了。 让我们考虑以下`std::add_pointer`和`std::is_pointer`的替代实现：
 
-``` C++
+```c++
 template<typename T>
 constexpr basic_type<T*> add_pointer(basic_type<T> const&)
 { return {}; }
@@ -933,7 +933,7 @@ constexpr auto is_pointer(basic_type<T*> const&)
 
 我们刚刚编写了看起来像函数的元函数，就像我们在上一节中将编译时算术元函数编写为异构`C++`操作符一样。 以下是我们如何使用它们：
 
-``` C++
+```c++
 basic_type<int> t{};
 auto p=add_pointer(t);
 BOOST_HANA_CONSTANT_CHECK(is_pointer(p));
@@ -941,7 +941,7 @@ BOOST_HANA_CONSTANT_CHECK(is_pointer(p));
 
 注意到我们现在如何使用正常的函数调用语法来执行类型级别的计算了吗? 这类似于使用编译期数值如何使用正常的`C++`操作符来执行编译时计算。 像我们对`integral_constant`所做的一样,我们还可以进一步使用`C++14`变量模板为创建类型提供语法糖：
 
-``` c++
+```c++
 template<typename T>
 constexpr basic_type<T> type_c{};
 
@@ -956,7 +956,7 @@ BOOST_HANA_CONSTANT_CHECK(is_pointer(p));
 
 这样做有什么好处呢？因为`type_c<...>`是一个对象，我们可以将它存储到像`tuple`这样的异构容器中，我们可以移动它，也可以将它传递(或者返回)到函数中，而且我们可以用在任何需要对象的地方:
 
-``` C++
+```c++
 auto types=hana::make_tuple(hana::type_c<int*>,hana::type_c<char&>,hana::type_c<void>);
 auto char_ref=types[1_c];
 
@@ -1544,7 +1544,7 @@ BOOST_HANA_ADAPT_STRUCT(not_my_namespace::Person, name, age);
 
 该效果与`BOOST_HANA_DEFINE_STRUCT`宏完全相同，除非您不需要修改要修改的类型，这有时是有用的。 最后，还可以使用`BOOST_HANA_ADAPT_ADT`宏定义自定义访问器：
 
-``` C++
+```c++
 namespace also_not_my_namespace {
   struct Person {
     std::string get_name();
@@ -2209,7 +2209,7 @@ boost::fusion::vector3<T, U, V>
 
 当调用`public`接口函数`xxx`时，它将获得它希望分派调用的参数的标签，然后将调用转发到与这些标签相关联的`xxx_impl`实现。例如，以下示例，`print`函数根据参数类型的标签来选择对应的特化版本：
 
-``` C++
+```c++
 template <typename Tag>
 struct print_impl {
   template <typename X>
