@@ -1287,7 +1287,7 @@ struct has_toString<T, decltype((void)std::declval<T>().toString())>
 { };
 ```
 
-代码能很好地工作，但目的不是很清楚，大多数没有深刻的模板元编程知识的人会认为这是黑魔法。 然后，我们可以实现`optionalToString`：
+代码能很好地工作，但代码想表达的意图不是很直观，大多数没有深刻的模板元编程知识的人会认为这是黑魔法。 然后，我们可以实现`optionalToString`：
 
 ```c++
 template <typename T>
@@ -1307,7 +1307,7 @@ std::string optionalToString(T const& obj) {
 auto has_toString = hana::is_valid([](auto&& obj) -> decltype(obj.toString()) { });
 ```
 
-这里我们有一个函数对象`has_toString`返回给定的表达式是否对我们传递给它的参数有效。 结果作为`IntegralConstant`返回，因此`constexpr-ness`在这里不是一个问题，因为函数的结果表示为一个类型。 现在，除了代码更少（这是一个单行！），意图也更清晰外。 还有其他好处是，`has_toString`可以传递到更高阶的算法，它也可以在函数范围定义，因此没有必要污染具有实现细节的命名空间范围。 下面是我们将如何编写的`optionalToString`：
+这里我们有一个函数对象`has_toString`返回给定的表达式是否对我们传递给它的参数有效。 结果作为`IntegralConstant`返回，因此`constexpr-ness`在这里不是一个问题，因为函数的结果表示为一个类型。 现在，除了代码更少（这是一个单行！），意图也更清晰外，还有其他好处是，`has_toString`可以传递到更高阶的算法，它也可以在函数范围定义，因此没有必要污染具有实现细节的命名空间范围。 下面是我们将如何编写的`optionalToString`：
 
 ```c++
 template <typename T>
@@ -1346,9 +1346,9 @@ std::string optionalToString(T const& obj) {
 }
 ```
 
-前面的示例仅涉及检查非静态成员函数的存在的特定情况。 然而，`is_valid`可以用于检测几乎任何种类的表达式的有效性。 为了完整起见，我们现在提供有效性检查的常见用例列表以及如何使用`is_valid`实现它们。
+前面的示例仅涉及检查是否存在某个非静态成员函数的特定情况。 然而，`is_valid`可以用于检测几乎任何种类的表达式的有效性。 以下列出了有效性检查的常见用例以及如何使用`is_valid`来实现它们。
 
-#### 非静态数值
+#### 非静态成员
 
 我们要看的第一个惯用法是检查非静态成员的存在。 我们可以使用与上一个示例类似的方式：
 
@@ -1360,7 +1360,7 @@ BOOST_HANA_CONSTANT_CHECK(has_member(Foo{}));
 BOOST_HANA_CONSTANT_CHECK(!has_member(Bar{}));
 ```
 
-注意我们为何将`x.member`的结果转换为`void`？ 这是为了确保我们的检测也适用于不能从函数返回的类型，如数组类型。 此外，重要的是使用引用作为我们的通用`lambda`的参数，否则将需要`x`是[复制构造](http://en.cppreference.com/w/cpp/concept/CopyConstructible)的，这不是我们试图检查的。 这种方法很简单，当对象可用时最方便。 然而，当检查器旨在不使用对象时，以下替代实现可以更好地适合：
+注意我们为何将`x.member`的结果转换为`void`？ 这是为了确保我们的检测也适用于不能从函数返回的类型，如数组类型。 此外，重要的是使用通用引用作为我们的`lambda`的参数，否则将需要`x`是[复制构造](http://en.cppreference.com/w/cpp/concept/CopyConstructible)的，这不是我们试图检查的。 这种方法很简单，当对象可用时最方便。 然而，当检查器旨在不使用对象时，以下替代实现可以更好地适合：
 
 ```c++
 auto has_member = hana::is_valid([](auto t) -> decltype(
@@ -1374,7 +1374,7 @@ BOOST_HANA_CONSTANT_CHECK(!has_member(hana::type_c<Bar>));
 
 这个有效性检查器不同于我们之前看到的，因为通用的`lambda`不再期望一个通常的对象了; 它现在期待一个类型（它是一个对象，但仍然代表一个类型）。 然后，我们使用来自`<boost/hana/traits.hpp>`头文件的`hana::traits::declval`提升的元函数来创建由`t`表示的类型的右值，然后我们可以使用它来检查非静态成员。 最后，不是将实际对象传递给`has_member`（像`Foo{}`或`Bar{}`），我们现在传递一个`type_c<...>`。 这个实现是没有对象时的理想选择。
 
-#### 静态数值
+#### 静态成员
 
 检查静态成员是很容易的，并且`Hana`提供完整性支持：
 
@@ -1470,7 +1470,7 @@ std::string optionalToString(T const& obj) {
 }
 ```
 
-首先，我们使用`sfinae`函数包装`toString`。 因此，`maybe_toString`是一个函数，如果形式良好，则返回`(x.toString())`，否则不返回。 其次，我们使用`.value_or()`函数从容器中提取可选值。 如果可选值为空，`.value_or()`返回给定的默认值; 否则，返回`just(x.toString())`。 这种将`SFINAE`看作可能失败的计算的特殊情况的方式是非常干净和强大的，特别是因为`sfinae'd`函数可以通过`hana::optional` Monad组合，这留给参考文档。
+首先，我们使用`sfinae`函数包装`toString`。 因此，`maybe_toString`是一个函数，如果形式良好，则返回`(x.toString())`，否则不返回。 其次，我们使用`.value_or()`函数从容器中提取可选值。 如果可选值为空，`.value_or()`返回给定的默认值; 否则，返回`just(x.toString())`。 这种将`SFINAE`看作可能失败的计算的特殊情况的方式是非常干净和强大的，特别是因为`sfinae'd`函数可以通过`hana::optional` `Monad`组合，祥情参见参考文档。
 
 ### 内省用户定义类型
 
@@ -1514,7 +1514,7 @@ int age = hana::at_key(john, "age"_s);
 BOOST_HANA_RUNTIME_CHECK(age == 30);
 ```
 
-> **注意：** `_s`用户定义的文本创建一个编译时`hana::string`。 它位于`boost::hana::literals`命名空间中。 请注意，它不是标准的一部分，但受`Clang`和`GCC`支持。 如果要保持100%的标准，可以使用`BOOST_HANA_STRING`宏。
+> **注意：** `_s`用户定义的文本创建一个编译时`hana::string`。 它位于`boost::hana::literals`命名空间中。 请注意，它不是标准的一部分，但受`Clang`和`GCC`支持。 如果要保持`100%`的标准，可以使用`BOOST_HANA_STRING`宏。
 
 `Struct`和`hana::map`之间的主要区别在于`hana::map`可以修改映射（可以添加和删除键），而`Struct`是不可变的。 但是，您可以轻松地将一个`Struct`转换为与`<map_tag>`关联的`hana::map`，然后您可以以更灵活的方式操作它。
 

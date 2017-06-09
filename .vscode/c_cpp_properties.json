@@ -2,18 +2,28 @@
     "configurations": [
         {
             "name": "Mac",
-            "includePath": ["/usr/include"],
-            "browse" : {
-                "limitSymbolsToIncludedHeaders" : true,
-                "databaseFilename" : ""
+            "includePath": [
+                "/usr/include"
+            ],
+            "browse": {
+                "limitSymbolsToIncludedHeaders": true,
+                "databaseFilename": "",
+                "path": [
+                    "/usr/include"
+                ]
             }
         },
         {
             "name": "Linux",
-            "includePath": ["/usr/include"],
-            "browse" : {
-                "limitSymbolsToIncludedHeaders" : true,
-                "databaseFilename" : ""
+            "includePath": [
+                "/usr/include"
+            ],
+            "browse": {
+                "limitSymbolsToIncludedHeaders": true,
+                "databaseFilename": "",
+                "path": [
+                    "/usr/include"
+                ]
             }
         },
         {
@@ -23,9 +33,14 @@
                 "./",
                 "C:/Program Files (x86)/Windows Kits/10/Include/10.0.14393.0/um"
             ],
-            "browse" : {
-                "limitSymbolsToIncludedHeaders" : true,
-                "databaseFilename" : ""
+            "browse": {
+                "limitSymbolsToIncludedHeaders": true,
+                "databaseFilename": "",
+                "path": [
+                    "D:/Program Files/Microsoft Visual Studio/VC/Tools/MSVC/14.10.24629/include",
+                    "./",
+                    "C:/Program Files (x86)/Windows Kits/10/Include/10.0.14393.0/um"
+                ]
             }
         }
     ]
