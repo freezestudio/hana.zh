@@ -12,10 +12,6 @@
 
     自`Boost 1.61.0`或更高版本开始，`Hana`包含在`Boost`中。因此，安装了`Boost`即可访问`Hana`了。
 
-1. 用`CMake`项目本地安装
-
-    如果你在项目中使用了`CMake`,你可以使用[FindHana.cmake](https://github.com/boostorg/hana/blob/master/cmake/FindHana.cmake)模块将`Hana`作为外部`CMake`项目的方式安装。这个模块允许使用已安装的`Hana`版本，也可以安装到你本地`CMake`项目中而不需要系统的全局版本。
-  
 1. 使用`Homebrew`
 
     在`MacOS`上，可以使用[Homebrew](http://brew.sh/)安装`Hana`：
@@ -24,7 +20,7 @@
     brew install hana
     ```
 
-1. 手动安装
+1. 手动(`manually`)安装
 
     您可以从官方[GitHub存储库](https://github.com/boostorg/hana)下载代码，并通过从项目根目录执行以下命令来手动安装库(需要[CMake](http://www.cmake.org/))。
 
@@ -37,13 +33,37 @@
 这样，将在您的平台上安装`Hana`到缺省的安装目录(`Unix`为`/usr/local`,`Windows`为`C:\\Program Files`)。如果想要安装到指定位置,可以这样做：
 
 ``` bat
-> cmake .. -DCMAKE_INSTALL_PREFIX=/custom/install/prefix 
+> cmake .. -DCMAKE_INSTALL_PREFIX=/custom/install/prefix
 ```
+
+如果您只想为`Hana`做出贡献，您可以看到如何在[README](https://github.com/boostorg/hana/blob/master/README.md#hacking-on-hana)中最佳地设置您的环境进行开发。
 
 > **注意：** 手动安装或者`Homebrew`方式安装还将安装一个与[pkg-config](http://www.freedesktop.org/wiki/Software/pkg-config/)一起使用的`hana.pc`文件。
 >不要将全局安装的`Hana`与全局安装的`Boost`混合在一起，因为这两种安装方式都会发生冲突。 您不会知道使用哪一个版本的`Hana`，并且可能会破坏依赖于`Boost`（或反之亦然）提供的`Hana`版本的库。 一般来说，你应该尽可能地使用本地安装(局部安装)。
 
-最后，如果你想对`Hana`做出贡献，[README](https://github.com/boostorg/hana/blob/master/README.md#hacking-on-hana)文档中有相关最佳设置你的开发环境的描述。
+最后，如果你想参与`Hana`开发，[README](https://github.com/boostorg/hana/blob/master/README.md#hacking-on-hana)文档中有相关最佳设置你的开发环境的描述。
+
+### CMake用户注意
+
+如果你使用`CMake`，安装`Hana`会更简单。 安装时，`Hana`创建一个`HanaConfig.cmake`文件，该文件将您（通过`Homebrew`或`manually`）安装`Hana`时所必需的设置和接口等工作都做了。使用`find_package（Hana）`，然后将您自己的项目与`hana`项目相关联。 以下是个极简的例子：
+
+```cmake
+cmake_minimum_required(VERSION 3.0)
+project(external CXX)
+find_package(Hana REQUIRED)
+add_executable(external main.cpp)
+target_link_libraries(external hana)
+```
+
+如果您已将`Hana`安装在非标准的位置，则可能需要设置`CMAKE_PREFIX_PATH`。 例如，如果您是通过“manually”的方式将`Hana`本地安装到另一个项目，则可能会发生这种情况。 在这种情况下，您需要告诉`CMake`在哪里能找到`HanaConfig.cmake`文件
+
+```cmake
+list(APPEND CMAKE_PREFIX_PATH "${INSTALLATION_PREFIX_FOR_HANA}")
+or
+cmake ... -DCMAKE_PREFIX_PATH=${INSTALLATION_PREFIX_FOR_HANA}
+```
+
+`INSTALLATION_PREFIX_FOR_HANA`为`Hana`的安装路径。
 
 ### 编译器要求
 
