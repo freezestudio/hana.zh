@@ -2191,7 +2191,7 @@ auto oh_jeez = hana::permutations(list); // probably won't make it
 
 ### Tags
 
-一般来说异构编程基本上就是使用具有不同类型的对象进行编程。然而，我们也清楚地看到，一些对象的家族，虽然具有不同的（`C++类型`）表示，但它们是强相关的。例如，`std::integral_constant<int,n>`类型对于每个不同的`n`类型是不同的，但在概念上它们都代表相同的东西--编译时数值。事实上，`std::integral_constant<int,1>{}`和`std::integral_constant<int,2>{}`有不同的类型只是这个事实的副作用：我们使用他们的类型来编码这些对象。实际上，当操作`std::integr_constant<int,...>`的序列时，你可能会认为它是一个虚拟的`integral_constant`类型的同构序列，忽略对象的实际类型，假装它们只是使用了不同的`integral_constant`值。
+一般来说异构编程基本上就是使用具有不同类型的对象进行编程。然而，我们也清楚地看到，一些对象的家族，虽然具有不同的（`C++类型`）表示，但它们是强相关的。例如，`std::integral_constant<int,n>`类型对于每个不同的`n`类型是不同的，但在概念上它们都代表相同的东西--编译时数值。事实上，`std::integral_constant<int,1>{}`和`std::integral_constant<int,2>{}`有不同的类型只是这个事实的副作用：我们使用他们的类型来编码这些对象。实际上，当操作`std::integral_constant<int,...>`的序列时，你可能会认为它是一个虚拟的`integral_constant`类型的同构序列，忽略对象的实际类型，假装它们只是使用了不同的`integral_constant`值。
 
 为了反映这种情况，`Hana`提供了`tag`来表示异构容器和其他编译时实体。例如，所有的`Hana`的`integral_constant<int,...>`都有不同的类型，但是它们都有相同的`tag`，即`integral_constant_tag<int>`。这就允许程序员根据单个类型来思考问题，而不是试图考虑每个对象的实际类型。具体来说，`tag`被实现为空结构体。为了区别它们，`Hana`约定通过添加`_tag`后缀来命名这些`tag`。
 
@@ -2279,7 +2279,7 @@ struct vector2 {
 // and so on...
 ```
 
-嵌套类型`using hana_tag = vector_tag;` 部分是控制`tag_of`元函数的结果的简单方式，因此是`vectorN`类型的标签。 参见`tag_of`的解释。 最后，如果你想为所有的`vectorN`类型定制输出函数的行为，你通常需要：
+嵌套类型`using hana_tag = vector_tag` 部分是控制`tag_of`元函数的结果的简单方式，因此是`vectorN`类型的标签。 参见`tag_of`的解释。 最后，如果你想为所有的`vectorN`类型定制输出函数的行为，你通常需要：
 
 ```c++
 void print(std::ostream& os, vector0)
@@ -2413,7 +2413,7 @@ static_assert(!Printable<void>::value, "");
 
 正如你所看到的，`Printable<T>`只是检查`print_impl <T> struct`是否是一个自定义类型。 特别地，它甚至不检查是否定义嵌套的`::apply`函数或者它是否在语法上有效。 假设如果一个专门用于自定义类型的`print_impl`，则嵌套的`::apply`函数存在并且是正确的。 如果不是，则当尝试在该类型的对象上调用`print`时将触发编译错误。 `Hana`中的`concept`做出相同的假设。
 
-由于这种从特殊基类继承的模式在Hana中是相当常用的，所以库提供了一个称为`hana::default_`的虚拟类型，可以用于替换`special_base_class`。 然后，不使用`std::is_base_of`，可以使用`hana::is_default`，看起来更好。 有了这个语法糖，代码现在变成：
+由于这种从特殊基类继承的模式在`Hana`中是相当常用的，所以库提供了一个称为`hana::default_`的虚拟类型，可以用于替换`special_base_class`。 然后，不使用`std::is_base_of`，可以使用`hana::is_default`，看起来更好。 有了这个语法糖，代码现在变成：
 
 ```c++
 template <typename T>
@@ -2429,7 +2429,7 @@ struct Printable
 { };
 ```
 
-这就是要知道标签调度函数和`concept`之间的交互。然而，`Hana`中的一些`concept`不仅仅依赖于特定标签调度函数的定义来确定类型是否是`concept`的模型。当`concept`仅通过法则和精化`concept`引入语义保证，但没有额外的句法要求时，这可能发生。定义这样的`concept`由于几个原因是有用的。首先，如果我们可以假设一些语义保证`X`或`Y`，有时候会发生一个算法可以更有效地实现，所以我们可能创建一个`concept`来强制这些保证。其次，当我们有额外的语义保证时，有时可以自动定义几个`concept`的模型，这样可以节省用户手动定义这些模型的麻烦。例如，这是`Sequence``concept`的情况，它基本上为`Iterable`和`Foldable`添加了语义保证，从而允许我们为从`Comparable`到`Monad`的大量`concept`定义模型。
+这就是要知道标签调度函数和`concept`之间的交互。然而，`Hana`中的一些`concept`不仅仅依赖于特定标签调度函数的定义来确定类型是否是`concept`的模型。当`concept`仅通过法则和精化`concept`引入语义保证，但没有额外的句法要求时，这可能发生。定义这样的`concept`由于几个原因是有用的。首先，如果我们可以假设一些语义保证`X`或`Y`，有时候会发生一个算法可以更有效地实现，所以我们可能创建一个`concept`来强制这些保证。其次，当我们有额外的语义保证时，有时可以自动定义几个`concept`的模型，这样可以节省用户手动定义这些模型的麻烦。例如，这是`Sequence`的`concept`的情况，它基本上为`Iterable`和`Foldable`添加了语义保证，从而允许我们为从`Comparable`到`Monad`的大量`concept`定义模型。
 
 对于这些`concept`，通常需要在`boost::hana`命名空间中特化相应的模板结构以提供自定义类型的模型。这样做就像提供一个密封，说这个`concept`所要求的语义保证是由定制类型遵守的。需要明确特化的`concept`将文档化这一事实。这就是所有有必要了解的`Hana`的`concept`，到这里就结束了关于`Hana`的核心一节。
 
@@ -2703,9 +2703,9 @@ struct have_common_embedding {
 
 ## 附录一：高级constexpr
 
-在`C++`中，编译时和运行时之间的边界是模糊的，这在`C++14`中引入泛化常量表达式时更是如此。 然而，能够操纵异质对象是所有关于理解的边界，然后穿过它的意志。 这个部分的目标是用`constexpr`设置事情的直线; 以了解哪些问题可以解决，哪些不能。 这部分涵盖了关于常量表达式的高级概念; 只有对`constexpr`有很好理解的读者应该尝试读这个。
+在`C++`中，编译时和运行时之间的边界是模糊的，这在`C++14`中引入泛化常量表达式时更是如此。 然而，能够操纵异构对象就意味着要能深刻理解边界的含义，让代码按自己的意图来运行。 本节的目标是使用`constexpr`来设置一些东西; 以了解哪些问题可以解决，哪些不能。 本节涵盖了关于常量表达式的高级概念; 只有对`constexpr`有很好理解的读者才应该尝试阅读。
 
-### Constexpr剥离
+### Constexpr stripping
 
 让我们开始一个具有挑战性的问题。 下面的代码可编译吗？
 
@@ -2718,7 +2718,7 @@ constexpr int one = 1;
 f(one);
 ```
 
-答案是否定的，由`Clang`给出的错误就像:
+答案是不能，由`Clang`给出的错误就像:
 
 ```c++
 error: static_assert expression is not an integral constant expression
@@ -2726,7 +2726,7 @@ error: static_assert expression is not an integral constant expression
                 ^~~~~~
 ```
 
-解释是在`f`的体内部，`t`不是常数表达式，因此它不能用作`static_assert`的操作数。 原因是这样的函数根本不能由编译器生成。 要理解这个问题，考虑当我们使用具体类型实例化`f`模板时应该发生什么：
+对出错的解释是，在`f`的函数体内，`t`不是常数表达式，因此不能用作`static_assert`的操作数。 原因是这样的函数根本不能由编译器生成。 要理解这个问题，考虑当我们使用具体类型实例化`f`模板时发生了什么：
 
 ```c++
 // Here, the compiler should generate the code for f<int> and store the
@@ -2734,7 +2734,7 @@ error: static_assert expression is not an integral constant expression
 void (*fptr)(int) = f<int>;
 ```
 
-显然，编译器不能生成`f<int>`的代码，如果`t!= 1`，它应该触发一个`static_assert`，因为我们还没有指定。 更糟的是，生成的函数应该在常量和非常量表达式上工作：
+显然，编译器不能生成`f<int>`的代码，如果`t!= 1`，它应该触发一个`static_assert`，因为我们还没有指定`t`的值。 更糟的是，生成的函数应该适用于常量和非常量表达式：
 
 ```c++
 void (*fptr)(int) = f<int>; // assume this was possible
@@ -2742,7 +2742,7 @@ int i = ...; // user input
 fptr(i);
 ```
 
-显然，不能生成`fptr`的代码，因为它需要能够对运行时值进行`static_assert`，这是没有意义的。 此外，注意，无论你是否使用`constexpr`函数都没关系; 使`f constexpr`只声明f的结果是一个常量表达式，只要它的参数是一个常量表达式，但它仍然不能让你知道你是否使用`f`的`body`中的常量表达式调用。 换句话说，我们想要的是：
+显然，不能生成`fptr`的代码，因为它需要能够对运行时值进行`static_assert`，这是没有意义的。 此外，注意，无论你是否使用`constexpr`函数都没关系; 使`f constexpr`只声明`f`的结果是一个常量表达式，只要它的参数是一个常量表达式，但它仍然不能让你知道你是否使用`f`的`body`中的常量表达式调用。 换句话说，我们想要的是：
 
 ```c++
 template <typename T>
@@ -2753,11 +2753,11 @@ constexpr int one = 1;
 f(one);
 ```
 
-在这个假设情况下，编译器将知道`t`是来自`f`的主体的常量表达式，并且可以使`static_asser`t起作用。 然而，`constexpr`参数在当前语言中不存在，并且添加它们将带来非常具有挑战性的设计和实现问题。 这个小实验的结论是**参数传递剥离了constexpr-ness**。 现在可能不清楚的是这种剥离的后果，接下来解释。
+在这个假设情况下，编译器将知道`t`是来自`f`的主体的常量表达式，并且可以使`static_asser`t起作用。 然而，当前语言还不`constexpr`参数，并且添加它们将带来非常具有挑战性的设计和实现问题。 这个小实验的结论是**参数传递剥离了constexpr-ness**。 现在可能不清楚的是这种剥离的后果，接下来解释。
 
 ### Constexpr保存
 
-参数不是常量表达式意味着我们不能将其用作非类型模板参数，数组绑定，`static_assert`或需要常量表达式的任何其他值。 此外，这意味着函数的返回类型不能取决于参数的值，如果你考虑它是一个新的东西：
+参数不是常量表达式意味着我们不能将其用作非类型模板参数，数组绑定，`static_assert`或需要常量表达式的任何其他地方。 此外，这意味着函数的返回类型不能取决于参数的值，如果你想以这样的形式得到一个新类型：
 
 ```c++
 template <int i>
@@ -2765,7 +2765,7 @@ struct foo { };
 auto f(int i) -> foo<i>; // obviously won't work
 ```
 
-事实上，函数的返回类型只能取决于它的参数的类型，而`constexpr`不能改变这个事实。 这对我们至关重要，因为我们对操作异构对象感兴趣，这最终意味着根据函数的参数返回具有不同类型的对象。 例如，一个函数可能希望在一种情况下返回类型T的对象，在另一种情况下返回类型U的对象; 从我们的分析，我们现在知道这些“情况”将必须依赖于参数类型编码的信息，而不是它们的值。
+显然，这行不通。事实上，函数的返回类型只能取决于它的参数的类型，而`constexpr`不能改变这个事实。 但**根据函数的参数返回具有不同类型的对象**对我们至关重要，因为我们对操作异构对象感兴趣。 例如，一个函数可能希望在一种情况下返回类型`T`的对象，在另一种情况下返回类型`U`的对象; 从以上分析来看，我们现在知道这些“情况”将必须依赖于参数类型编码的信息，而不是它们的值。
 
 为了通过参数传递来保留`constexpr`，我们必须将`constexpr`值编码为一个类型，然后将一个不一定是该类型的`constexpr`对象传递给函数。 该函数必须是模板，然后可以访问在该类型内编码的`constexpr`值。
 
@@ -2782,7 +2782,7 @@ int n = 0;
 constexpr int i = f(n);
 ```
 
-答案是肯定的，但原因可能不明显。 这里发生的是，我们有一个非`constexpr int n`和一个`constexpr`函数f引用它的参数。 大多数人认为它不应该工作的原因是`n`不是`constexpr`。 但是，我们不在`f`内部做任何事情，所以没有实际的理由，为什么这不应该工作！ 这有点像在内部的一个`constexpr`函数：
+答案是肯定的，但原因可能不明显。 这里发生的是，我们有一个非常量的值`n`和一个`constexpr`函数`f`和它的引用参数。 大多数人认为它不应该工作的原因是`n`不是`constexpr`。 但是，我们不在`f`内部做任何事情，所以没有什么实质的理由解释它不应该工作！ 这有点像在内部的一个`constexpr`函数：
 
 ```c++
 constexpr int sqrt(int i) {
@@ -2793,7 +2793,7 @@ constexpr int two = sqrt(4); // ok: did not attempt to throw
 constexpr int error = sqrt(-4); // error: can't throw in a constant expression
 ```
 
-只要`throw`出现的代码路径不被执行，调用的结果可以是常量表达式。 同样，我们可以在`f`中做任何我们想要的事，只要我们不执行一个代码路径需要访问它的参数`n`，这不是一个常量表达式：
+只要`throw`出现的代码路径不被执行，调用的结果可以是常量表达式。 同样，我们可以在`f`中做任何我们想要的事，只要我们不执行需要访问它的参数`n`的代码，因为这不是一个常量表达式：
 
 ```c++
 template <typename T>
@@ -2817,7 +2817,7 @@ note: read of non-const variable 'n' is not allowed in a constant expression
                ^
 ```
 
-让我们现在介绍一下游戏，并考虑一个更微妙的例子。 以下代码是否有效？
+让我们现在停下来看看它的游戏规则，并考虑一个更微妙的例子。 以下代码是否有效？
 
 ```c++
 template <typename T>
@@ -2826,7 +2826,7 @@ int n = 0;
 constexpr int i = f(n);
 ```
 
-与我们的初始场景唯一的区别是，f现在的参数按值而不是引用。 然而，这使一个世界有所不同。 事实上，我们现在要求编译器创建一个`n`的副本，并将此副本传递给`f`。 然而，`n`不是`constexpr`，所以它的值只在运行时知道。 编译器如何编译一个变量的副本（在编译时），该变量的值只在运行时才知道？ 当然，它不能。 事实上，`Clang`给出的错误信息对于发生了什么很清楚：
+与我们的初始场景唯一的区别是，`f`现在的参数按值而不是按引用传递。 然而，这与上一个函数有所不同。 事实上，我们现在要求编译器创建一个`n`的副本，并将此副本传递给`f`。 然而，`n`不是`constexpr`，所以它的值只在运行时知道。 编译器要怎么操作编译一个变量的副本（在编译时），但该变量的值只在运行时才知道？ 当然，它不能。 事实上，`Clang`给出的错误信息对于发生了什么很清楚：
 
 ```c++
 error: constexpr variable 'i' must be initialized by a constant expression
