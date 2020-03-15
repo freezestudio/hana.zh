@@ -680,7 +680,7 @@ using three=plus<integral_constant<int,1>,integral_constant<int,2>>::type;
 ```c++
 template<typename V,V v,typename U,U u>
 constexpr auto operator+(integral_constant<V,v>,integral_constant<U,u>){
-    return integral_constant<decltype(v+u>),v+u>{};
+    return integral_constant<decltype(v+u),v+u>{};
 }
 
 auto three=integral_constant<int,1>{}+integral_constant<int,2>{};
